@@ -5,8 +5,9 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40%2B-FF4B4B.svg)](https://streamlit.io/)
 [![Pandas](https://img.shields.io/badge/Pandas-2.0%2B-150458.svg)](https://pandas.pydata.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Branding: Tahlilchi AI](https://img.shields.io/badge/Powered%20by-Tahlilchi%20AI-0537ff.svg)](https://tahlilchi-ai.uz/)
 
-An interactive, user-friendly exploratory data analysis (EDA) and experiment tracking dashboard built with **Streamlit** and **Pandas**.
+An interactive, user-friendly exploratory data analysis (EDA) and experiment tracking dashboard built with **Streamlit** and **Pandas**, powered by **[Tahlilchi AI](https://tahlilchi-ai.uz/)**.
 
 **Dataset Explorer AI** is designed for data analysts, ML practitioners, students, and engineers who need deep, reliable insights into tabular data without altering or corrupting the raw source. It handles everything from detecting invisible whitespace corruptions to comparing machine learning experiment summaries with strict scientific rigor.
 
@@ -14,9 +15,13 @@ An interactive, user-friendly exploratory data analysis (EDA) and experiment tra
 
 ## 🚀 Key Highlights & Philosophy
 
+* 🗂️ **Modern Tabbed Architecture**: Seamless navigation across 4 dedicated tabs — Single Dataset EDA, CSV Version Diffing, ML Experiment Comparisons, and Guided Methodology.
+* ⚡ **1-Click Demo Datasets**: Test all tabs instantly on Streamlit Cloud without uploading files (Superstore sales data, BEFORE/AFTER CSVs, and M4C5 JSON summaries).
+* 🩺 **Data Health Score (0–100)**: Instant overall dataset cleanliness metric combining missing cells, spaces-only strings, duplicates, and statistical outliers into an actionable grade.
 * 🛡️ **Zero Data Corruption**: Analysis is 100% non-destructive. Raw CSV files are never modified, overwritten, or implicitly trimmed.
 * 👁️ **Hidden Anomaly Detection**: Uncovers "invisible" issues that standard pandas checks overlook—such as spaces-only strings (`"   "`) masquerading as empty cells.
-* 📐 **Rigorous Statistical Guards**: Automatic $1.5 \times \text{IQR}$ outlier detection with Altair interactive boxplots, MinMax, and Z-score standardization previews.
+* 📐 **Rigorous Statistical Guards**: Automatic $1.5 \times \text{IQR}$ outlier detection with Altair interactive boxplots, MinMax, Z-score previews, and actionable remediation advice.
+* 📄 **Executive Summary Report Export**: Download a comprehensive markdown summary of all 8 EDA modules and quality health indicators in one click.
 * 🔄 **Dataset Version Diffing (BEFORE vs AFTER)**: Compare two CSV versions to trace schema changes (added/removed columns), cell-level missingness shifts, and row arrivals/departures by unique ID.
 * 🧪 **Machine Learning Experiment Compare (M4C5)**: Compare two ML experiment summaries (JSON) with automatic context integrity checks, F1 / Precision / Recall deltas, and overfitting gap analysis.
 
@@ -163,6 +168,7 @@ Refer to [checks.txt](checks.txt) for the complete 11-point verification log (**
 ## 👤 Author & Acknowledgments
 
 * **Developer**: Usnatdin Xafizadinov
+* **Organization**: [Tahlilchi AI](https://tahlilchi-ai.uz/)
 * **Repository**: [https://github.com/XafizadinovUsnatdin/datasetexplorer](https://github.com/XafizadinovUsnatdin/datasetexplorer)
 * **Email**: xafizadinovusnatdin@gmail.com
 

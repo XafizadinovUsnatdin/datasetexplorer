@@ -1,15 +1,26 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import base64
+import os
+import io
+import json
+import math
+
+icon_path = os.path.join(os.path.dirname(__file__), "assets", "icon.svg")
+logo_path = os.path.join(os.path.dirname(__file__), "assets", "tahlilchi-logo.svg")
+
+icon_b64 = ""
+if os.path.exists(icon_path):
+    with open(icon_path, "rb") as f:
+        icon_b64 = base64.b64encode(f.read()).decode("utf-8")
 
 # Configure page settings
 st.set_page_config(
-    page_title="Dataset Explorer AI",
-    page_icon="📊",
+    page_title="Dataset Explorer AI · Tahlilchi AI",
+    page_icon=icon_path if os.path.exists(icon_path) else "📊",
     layout="wide"
 )
-
-# Custom styling for main color #0537ff, modern cards, and clean typography
 st.markdown(
     """
     <style>
@@ -352,125 +363,106 @@ st.markdown(
         font-size: 12px;
         color: #0b192c;
     }
+    
+    /* Data Health Score Card */
+    .health-card {
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-bottom: 22px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+        transition: all 0.25s ease;
+    }
+    .health-pill {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 12px;
+        color: #334155;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+    .health-pill strong {
+        color: #0537ff;
+    }
+
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 20px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        padding: 10px 18px;
+        border-radius: 8px 8px 0 0;
+        font-weight: 600;
+        font-size: 14px;
+        color: #475569;
+        border: none;
+        background: transparent;
+        transition: all 0.2s ease;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #0537ff !important;
+        border-bottom: 3px solid #0537ff !important;
+        background: #f0f4ff !important;
+    }
+
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# App Hero Banner
-st.markdown(
-    """
-    <div class="hero-banner">
-        <div class="hero-badge">AI/ML Fundamentals · Dataset Tool</div>
-        <div class="hero-title">📊 Dataset Explorer AI</div>
-        <p class="hero-desc">
-            Upload your tabular CSV dataset to inspect dimensions, view column types, identify missing values, detect spaces-only cells, explore category aggregations, inspect distributions & correlations, compare CSV versions, or compare machine learning experiment runs.
-        </p>
-    </div>
-    <div class="steps-ribbon">
-        <div class="step-chip"><span class="step-num">1</span> 📂 Upload</div>
-        <div class="step-chip"><span class="step-num">2</span> 📐 Dimensions</div>
-        <div class="step-chip"><span class="step-num">3</span> 🔍 Missing & Spaces</div>
-        <div class="step-chip"><span class="step-num">4</span> 📊 Aggregations</div>
-        <div class="step-chip"><span class="step-num">5</span> 🔬 1.5×IQR Outliers</div>
-        <div class="step-chip"><span class="step-num">6</span> 📈 Distributions</div>
-        <div class="step-chip"><span class="step-num">7</span> 🔗 Correlation Heatmap</div>
-        <div class="step-chip"><span class="step-num">8</span> 🎯 Feature Selection</div>
-        <div class="step-chip"><span class="step-num">9</span> 🔄 CSV Compare</div>
-        <div class="step-chip"><span class="step-num">10</span> 🧪 Experiment Compare</div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
 
-with st.expander("💡 Guided Tour: What Each Step & Calculation Does", expanded=False):
-    st.markdown(
-        """
-        - **Step 1: Upload CSV** — Loads your dataset safely using UTF-8 encoding and automatic comma/semicolon delimiter detection without modifying the underlying file.
-        - **Step 2: Dimensions & Duplicate Rows** — Calculates total rows, total columns, and exact extra duplicate rows (excluding the first occurrence).
-        - **Step 3: Missing & Spaces-Only Data** — Scans every cell. Differentiates between ordinary nulls (`NaN`) and `"   "` (cells consisting purely of invisible spaces). Preserves `0`, `"0"`, `"NA"`, and `"null"` as real values.
-        - **Step 4: Category Aggregations** — Computes group sums using `min_count=1`. Groups where all numbers are missing display `"No data"` rather than being distorted to `0`.
-        - **Step 5: Inspect Numeric Values (1.5 × IQR)** — Calculates $Q_1$, $Q_3$, $\\text{IQR} = Q_3 - Q_1$, and flags potential outliers strictly outside whiskers as *Needs inspection*.
-        - **Step 6: Distributions & Extended Statistics** — Renders interactive histograms with Mean & Median rules, calculates Skewness (asymmetry) and Kurtosis (peakness).
-        - **Step 7: Correlation Matrix & Heatmap** — Evaluates Pearson / Spearman linear & monotonic correlations between numeric features with an interactive scatter plot.
-        - **Step 8: Feature Selection & ML Readiness** — Ranks features by predictive power relative to a selected target variable, warns about multicollinearity ($|r| \\ge 0.85$), and exports the prepared dataset.
-        - **Step 9: Version Comparison (BEFORE vs AFTER)** — Compares two CSV versions with $\\Delta = \\text{AFTER} - \\text{BEFORE}$. Validates non-blank unique IDs to distinguish net row delta from true arrivals ($|S_{after} \\setminus S_{before}|$) and departures ($|S_{before} \\setminus S_{after}|$).
-        - **Step 10: Experiment Summary Comparison (M4C5)** — Compares two JSON experiment summaries. Tracks F1, Precision, and Recall deltas ($B - A$). Validates matching recorded conditions (dataset, split, features, threshold, seed, validation split) without inventing defaults or declaring winners.
-        """
-    )
+# Helper functions
+def is_missing_cell(val):
+    if val is None or pd.isna(val):
+        return True
+    if isinstance(val, str):
+        return len(val.strip()) == 0
+    return False
 
-# Main File Upload Area (No sidebar needed)
-uploaded_file = st.file_uploader(
-    "Choose a CSV file to explore (maximum 5 MB):",
-    type=["csv"],
-    help="Supports standard UTF-8 encoded CSV files up to 5 MB."
-)
+def generate_markdown_report(df, filename, total_rows, total_cols, dup_count, dup_pct, missing_count, spaces_count, health_score, health_status):
+    numeric_cols = list(df.select_dtypes(include=[np.number]).columns)
+    cat_cols = list(df.select_dtypes(include=["object"]).columns)
+    
+    report = f"""# 📊 Dataset Explorer AI - Tahlil Xulosasi Hisoboti
 
-MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
+- **Fayl nomi:** `{filename}`
+- **Yaratilgan sana:** `2026-11-05`
+- **Platforma:** [Dataset Explorer AI](https://github.com/XafizadinovUsnatdin/datasetexplorer) · [Tahlilchi AI](https://tahlilchi-ai.uz/)
 
-if uploaded_file is None:
-    st.markdown(
-        """
-        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 14px; padding: 40px 24px; text-align: center; margin-top: 14px;">
-            <div style="font-size: 42px; margin-bottom: 12px;">📁</div>
-            <h3 style="color: #0b192c !important; margin: 0 0 8px 0; font-size: 20px;">No CSV file uploaded yet</h3>
-            <p style="color: #64748b; font-size: 14px; max-width: 520px; margin: 0 auto 16px auto;">
-                Drag and drop or browse your CSV file above to start analyzing dataset structure, column types, missing values, and category charts.
-            </p>
-            <div style="display: inline-flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
-                <span style="background: #e0e7ff; color: #0537ff; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;">UTF-8 CSV</span>
-                <span style="background: #e0e7ff; color: #0537ff; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;">Max 5 MB</span>
-                <span style="background: #e0e7ff; color: #0537ff; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;">Automatic Delimiter Detection</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-else:
-    # 1. Check file extension
-    file_name = uploaded_file.name
-    if not file_name.lower().endswith(".csv"):
-        st.error(f"❌ Wrong file type: '{file_name}'. Please upload a valid file ending with .csv.")
-        st.stop()
+---
 
-    # 2. Check file size
-    file_size_bytes = uploaded_file.size
-    file_size_mb = file_size_bytes / (1024 * 1024)
-    if file_size_bytes > MAX_FILE_SIZE_BYTES:
-        st.error(f"❌ The uploaded file is too large ({file_size_mb:.2f} MB). The maximum allowed file size is 5 MB.")
-        st.stop()
+## 🩺 1. Ma'lumotlar Sifati Indeksi (Data Health Score)
+- **Umumiy ball:** **{health_score} / 100**
+- **Holat:** {health_status}
+- **Qatorlar soni:** {total_rows:,}
+- **Ustunlar soni:** {total_cols}
+- **Takroriy qatorlar (dublikat):** {dup_count:,} ({dup_pct:.2f}%)
+- **Yetishmayotgan kataklar (NaN):** {missing_count:,}
+- **Faqat probelli kataklar (Spaces-Only):** {spaces_count:,}
 
-    # 3. Check for empty file
-    if file_size_bytes == 0:
-        st.error("❌ The uploaded file is empty (0 bytes). Please upload a file that contains data.")
-        st.stop()
+---
 
-    # 4. Attempt to read CSV with pandas (Auto-detects comma or semicolon)
-    try:
-        uploaded_file.seek(0)
-        try:
-            df = pd.read_csv(uploaded_file, sep=None, engine="python", encoding="utf-8", header=0)
-        except Exception:
-            uploaded_file.seek(0)
-            df = pd.read_csv(uploaded_file, sep=",", encoding="utf-8", header=0)
-    except UnicodeDecodeError:
-        st.error("❌ Could not read the file using UTF-8 encoding. Please save your CSV with UTF-8 encoding and try again.")
-        st.stop()
-    except pd.errors.EmptyDataError:
-        st.error("❌ The uploaded file contains no data or headers. Please verify the file content.")
-        st.stop()
-    except pd.errors.ParserError as e:
-        st.error(f"❌ Could not parse the CSV file. Please make sure the file is in valid CSV format.\n\nDetails: {e}")
-        st.stop()
-    except Exception as e:
-        st.error(f"❌ An unexpected error occurred while reading the file: {e}")
-        st.stop()
+## 📋 2. Ustunlar Tavsifi
+- **Sonli ustunlar ({len(numeric_cols)} ta):** `{', '.join(numeric_cols) if numeric_cols else 'Mavjud emas'}`
+- **Toifaviy / Matnli ustunlar ({len(cat_cols)} ta):** `{', '.join(cat_cols) if cat_cols else 'Mavjud emas'}`
 
-    # Verify if dataframe is empty after parsing
-    if df.empty:
-        st.warning("⚠️ The file was parsed, but it contains no rows of data.")
-        st.stop()
+---
 
+## 💡 3. Keyingi Qadamlar va Tavsiyalar
+1. Bo‘sh va probelli kataklar ML model o‘qitishdan oldin mos ravishda tozalanishi yoki to‘ldirilishi kerak.
+2. Ekstremal anomaliyalar 1.5×IQR bo‘yicha tekshirilib, domen talabiga ko‘ra saqlanishi yoki tuzatilishi zarur.
+3. Multikollinear ustunlar (|r| >= 0.85) model aniqligini tushirmasligi uchun olib tashlanishi tavsiya etiladi.
+
+*Hisobot avtomatik ravishda Dataset Explorer AI tomonidan shakllantirildi.*
+"""
+    return report
+
+def run_single_eda_pipeline(df, file_name, file_size_mb):
     total_rows = len(df)
     total_columns = len(df.columns)
     # Extra exact duplicate rows excluding the first occurrence
@@ -496,6 +488,84 @@ else:
         st.warning(f"⚠️ Found **{extra_duplicates:,}** extra duplicate rows ({dup_pct:.2f}% of total rows). These are exact duplicate rows that repeat earlier records.")
     else:
         st.success("✅ No duplicate rows found in this dataset.")
+    # -------------------------------------------------------------
+    # Data Health Score (0-100)
+    # -------------------------------------------------------------
+    total_cells = total_rows * total_columns
+    total_missing = int(df.isna().sum().sum())
+    missing_rate = (total_missing / total_cells * 100) if total_cells > 0 else 0
+
+    spaces_count = 0
+    for col in df.select_dtypes(include=["object"]).columns:
+        spaces_count += int(df[col].astype(str).str.fullmatch(r"^\s+$").sum())
+
+    dup_rate = (extra_duplicates / total_rows * 100) if total_rows > 0 else 0
+
+    num_cols = df.select_dtypes(include=[np.number]).columns
+    total_outliers = 0
+    for c in num_cols:
+        vals = df[c].dropna()
+        if len(vals) >= 4:
+            q1 = vals.quantile(0.25)
+            q3 = vals.quantile(0.75)
+            iqr = q3 - q1
+            low = q1 - 1.5 * iqr
+            high = q3 + 1.5 * iqr
+            total_outliers += int(((vals < low) | (vals > high)).sum())
+
+    penalty_missing = min(35, missing_rate * 2.0)
+    penalty_spaces = min(20, spaces_count * 2.0)
+    penalty_dups = min(20, dup_rate * 1.5)
+    penalty_outliers = min(15, (total_outliers / total_rows * 100) * 0.5) if total_rows > 0 else 0
+
+    health_score = int(max(0, min(100, round(100 - (penalty_missing + penalty_spaces + penalty_dups + penalty_outliers)))))
+
+    if health_score >= 90:
+        health_badge_text = "A'LO"
+        health_color = "#116644"
+        health_bg = "#edf8f1"
+        health_border = "#bdddc9"
+        health_desc = "Ma'lumotlar to‘plami toza, yetishmayotgan qiymatlar va dublikatlar minimal darajada. ML model o‘qitishga to‘liq tayyor."
+        health_status_full = "🟢 A'lo (Excellent) — ML modellashga to‘liq tayyor"
+    elif health_score >= 75:
+        health_badge_text = "YAXSHI"
+        health_color = "#854d0e"
+        health_bg = "#fefce8"
+        health_border = "#fef08a"
+        health_desc = "Umumiy sifat yaxshi, ammo ayrim ustunlarda bo‘sh kataklar yoki anomaliyalarni ko‘rib chiqish tavsiya etiladi."
+        health_status_full = "🟡 Yaxshi (Good) — Kichik tozalash tavsiya etiladi"
+    else:
+        health_badge_text = "E'TIBOR TALAB"
+        health_color = "#991b1b"
+        health_bg = "#fef2f2"
+        health_border = "#fecaca"
+        health_desc = "Model o‘qitishdan oldin ma'lumotlarni tozalash, bo‘sh kataklarni to‘ldirish yoki olib tashlash talab etiladi."
+        health_status_full = "🔴 E'tibor talab (Attention) — Tozalash zarur"
+
+    st.markdown(
+        f"""
+        <div class="health-card" style="background: linear-gradient(135deg, {health_bg} 0%, #ffffff 100%); border: 1.5px solid {health_border};">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px;">
+                <div>
+                    <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">🩺 Ma'lumotlar Sifati Indeksi (Data Health Score)</div>
+                    <div style="display: flex; align-items: baseline; gap: 10px;">
+                        <span style="font-size: 38px; font-weight: 800; color: {health_color}; line-height: 1;">{health_score}</span>
+                        <span style="font-size: 18px; color: #64748b; font-weight: 600;">/ 100</span>
+                        <span style="background: {health_color}; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;">{health_badge_text}</span>
+                    </div>
+                    <div style="font-size: 13px; color: #334155; margin-top: 6px; font-weight: 500;">{health_desc}</div>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <div class="health-pill"><strong>{missing_rate:.1f}%</strong> bo‘sh kataklar ({total_missing:,} ta)</div>
+                    <div class="health-pill"><strong>{spaces_count}</strong> ta probelli katak</div>
+                    <div class="health-pill"><strong>{dup_rate:.1f}%</strong> dublikat qatorlar</div>
+                    <div class="health-pill"><strong>{total_outliers}</strong> ta anomaliya</div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # -------------------------------------------------------------
     # 2. Data Preview (First 100 rows)
@@ -1154,659 +1224,940 @@ else:
                 use_container_width=True
             )
 
-# Helper function for Section 9 missing cell detection
-def is_missing_cell(val):
-    if val is None or pd.isna(val):
-        return True
-    if isinstance(val, str):
-        return len(val.strip()) == 0
-    return False
 
-# -------------------------------------------------------------
-# 9. Compare Two CSV Versions (BEFORE vs AFTER) - M3C4 Upgrade
-# -------------------------------------------------------------
-st.divider()
-st.header("9. Compare Two CSV Versions (BEFORE vs AFTER)")
-st.caption(
-    "Compare an old (BEFORE) and new (AFTER) CSV dataset side-by-side to track changes in dimensions, "
-    "missing cell counts, column schema, and record arrivals / departures."
-)
-
-col_u1, col_u2 = st.columns(2)
-with col_u1:
-    st.markdown("#### 📁 BEFORE (Old File)")
-    before_file = st.file_uploader(
-        "Upload BEFORE CSV:",
-        type=["csv"],
-        key="compare_before_uploader",
-        help="Upload the baseline / original CSV version."
-    )
-    if before_file:
-        st.caption(f"📄 **Filename:** `{before_file.name}` ({before_file.size / 1024:.1f} KB)")
-
-with col_u2:
-    st.markdown("#### 📁 AFTER (New File)")
-    after_file = st.file_uploader(
-        "Upload AFTER CSV:",
-        type=["csv"],
-        key="compare_after_uploader",
-        help="Upload the modified / updated CSV version."
-    )
-    if after_file:
-        st.caption(f"📄 **Filename:** `{after_file.name}` ({after_file.size / 1024:.1f} KB)")
-
-if before_file is None or after_file is None:
-    if before_file is None and after_file is None:
-        st.info("ℹ️ Upload both a **BEFORE** file and an **AFTER** file above to view the version comparison.")
-    elif before_file is not None and after_file is None:
-        st.warning("⚠️ Please upload the **AFTER (new)** file to proceed with comparison.")
-    elif before_file is None and after_file is not None:
-        st.warning("⚠️ Please upload the **BEFORE (old)** file to proceed with comparison.")
-else:
-    # Read both files keeping literal string values and leading zeros
-    try:
-        before_file.seek(0)
-        try:
-            df_b = pd.read_csv(before_file, dtype=str, keep_default_na=False, encoding="utf-8")
-        except UnicodeDecodeError:
-            before_file.seek(0)
-            df_b = pd.read_csv(before_file, dtype=str, keep_default_na=False, encoding="latin1")
-
-        after_file.seek(0)
-        try:
-            df_a = pd.read_csv(after_file, dtype=str, keep_default_na=False, encoding="utf-8")
-        except UnicodeDecodeError:
-            after_file.seek(0)
-            df_a = pd.read_csv(after_file, dtype=str, keep_default_na=False, encoding="latin1")
-    except Exception as e:
-        st.error(f"❌ Error reading comparison CSV files: {e}")
-        df_b = None
-        df_a = None
-
-    if df_b is not None and df_a is not None:
-        # Calculate summary metrics across every row
-        b_rows, a_rows = len(df_b), len(df_a)
-        d_rows = a_rows - b_rows
-
-        b_cols, a_cols = len(df_b.columns), len(df_a.columns)
-        d_cols = a_cols - b_cols
-
-        b_miss = sum(1 for c in df_b.columns for v in df_b[c] if is_missing_cell(v))
-        a_miss = sum(1 for c in df_a.columns for v in df_a[c] if is_missing_cell(v))
-        d_miss = a_miss - b_miss
-
-        # Direction Banner
-        st.markdown(
-            f"""
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 18px; margin: 12px 0 20px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <div>
-                    <span style="font-size: 13px; font-weight: 700; color: #475569;">Comparison Direction:</span>
-                    <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: #0b192c; margin-left: 6px;">BEFORE (<b>{before_file.name}</b>) ➔ AFTER (<b>{after_file.name}</b>)</span>
-                </div>
-                <div>
-                    <span style="font-size: 12px; color: #64748b;">Formula: <b>Δ = AFTER − BEFORE</b></span>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
+        st.markdown("---")
+        st.subheader("📄 Tahlil Xulosasi Hisoboti (Executive Report)")
+        st.caption("Barcha tahlil natijalari, sifat indeksi va tavsiyalarni jamlagan tayyor hisobotni yuklab oling:")
+        
+        report_content = generate_markdown_report(
+            df=df,
+            filename=file_name,
+            total_rows=total_rows,
+            total_cols=total_columns,
+            dup_count=extra_duplicates,
+            dup_pct=dup_rate,
+            missing_count=total_missing,
+            spaces_count=spaces_count,
+            health_score=health_score,
+            health_status=health_status_full
+        )
+        
+        st.download_button(
+            label="📥 Tahlil Xulosasi Hisobotini Yuklab Olish (Markdown .md)",
+            data=report_content.encode("utf-8"),
+            file_name=f"EDA_Report_{file_name.replace('.csv', '')}.md",
+            mime="text/markdown",
+            use_container_width=True
         )
 
-        # Three Top Summary Cards
-        c1, c2, c3 = st.columns(3)
+def render_csv_diff_section():
+    st.divider()
+    st.header("9. Compare Two CSV Versions (BEFORE vs AFTER)")
+    st.caption(
+        "Compare an old (BEFORE) and new (AFTER) CSV dataset side-by-side to track changes in dimensions, "
+        "missing cell counts, column schema, and record arrivals / departures."
+    )
 
-        with c1:
-            row_delta_str = f"{d_rows:+d} net rows" if d_rows != 0 else "0 net rows"
-            st.metric(
-                label="Row Count",
-                value=f"{b_rows:,} → {a_rows:,}",
-                delta=row_delta_str,
-                delta_color="off"
-            )
-            if d_rows > 0:
-                st.markdown(f'<span class="badge-added">+ Added ({d_rows:+d})</span>', unsafe_allow_html=True)
-            elif d_rows < 0:
-                st.markdown(f'<span class="badge-removed">− Removed ({d_rows:+d})</span>', unsafe_allow_html=True)
-            else:
-                st.markdown('<span class="badge-unchanged">Unchanged (0)</span>', unsafe_allow_html=True)
+    demo_diff_c1, demo_diff_c2 = st.columns([1, 4])
+    with demo_diff_c1:
+        if st.button("🚀 Demo CSVlarni yuklash", key="btn_demo_diff_load", help="M3C4 Before va After CSV test fayllarini yuklash"):
+            st.session_state["use_demo_diff"] = True
+            st.rerun()
+    with demo_diff_c2:
+        if st.session_state.get("use_demo_diff", False):
+            if st.button("✖️ Namunani tozalash", key="btn_demo_diff_clear"):
+                st.session_state["use_demo_diff"] = False
+                st.rerun()
 
-        with c2:
-            col_delta_str = f"{d_cols:+d} net columns" if d_cols != 0 else "0 net columns"
-            st.metric(
-                label="Column Count",
-                value=f"{b_cols:,} → {a_cols:,}",
-                delta=col_delta_str,
-                delta_color="off"
-            )
-            if d_cols > 0:
-                st.markdown(f'<span class="badge-added">+ Added ({d_cols:+d})</span>', unsafe_allow_html=True)
-            elif d_cols < 0:
-                st.markdown(f'<span class="badge-removed">− Removed ({d_cols:+d})</span>', unsafe_allow_html=True)
-            else:
-                st.markdown('<span class="badge-unchanged">Unchanged (0)</span>', unsafe_allow_html=True)
 
-        with c3:
-            miss_delta_str = f"{d_miss:+d} net missing" if d_miss != 0 else "0 net missing"
-            st.metric(
-                label="Missing Cells (Whole Table)",
-                value=f"{b_miss:,} → {a_miss:,}",
-                delta=miss_delta_str,
-                delta_color="off"
-            )
-            if d_miss < 0:
-                st.markdown(f'<span class="badge-added">Reduced ({d_miss:+d})</span>', unsafe_allow_html=True)
-            elif d_miss > 0:
-                st.markdown(f'<span class="badge-removed">Increased ({d_miss:+d})</span>', unsafe_allow_html=True)
-            else:
-                st.markdown('<span class="badge-unchanged">Unchanged (0)</span>', unsafe_allow_html=True)
-
-        st.caption(
-            "ℹ️ *Note: Missing cells include empty strings and whitespace-only cells. Numerical/string 0 and literal 'NA' / 'null' are treated as valid values. "
-            "Delta is calculated as NEW − OLD. Color describes a difference, not data quality.*"
+    col_u1, col_u2 = st.columns(2)
+    with col_u1:
+        st.markdown("#### 📁 BEFORE (Old File)")
+        before_file = st.file_uploader(
+            "Upload BEFORE CSV:",
+            type=["csv"],
+            key="compare_before_uploader",
+            help="Upload the baseline / original CSV version."
         )
+        if before_file:
+            st.caption(f"📄 **Filename:** `{before_file.name}` ({before_file.size / 1024:.1f} KB)")
 
-        if d_rows == 0 and d_cols == 0 and d_miss == 0 and list(df_b.columns) == list(df_a.columns) and df_b.equals(df_a):
-            st.success("✅ **Identical Datasets**: All rows, columns, and cell values are identical between BEFORE and AFTER.")
+    with col_u2:
+        st.markdown("#### 📁 AFTER (New File)")
+        after_file = st.file_uploader(
+            "Upload AFTER CSV:",
+            type=["csv"],
+            key="compare_after_uploader",
+            help="Upload the modified / updated CSV version."
+        )
+        if after_file:
+            st.caption(f"📄 **Filename:** `{after_file.name}` ({after_file.size / 1024:.1f} KB)")
 
-        with st.expander("📐 Mathematical Breakdown of Calculations (Delta vs Arrivals/Departures)", expanded=False):
+    is_demo_diff = st.session_state.get("use_demo_diff", False) and (before_file is None) and (after_file is None)
+    if is_demo_diff:
+        st.info("ℹ️ **Namunaviy test fayllari faol:** `M3C4_BEFORE.csv` va `M3C4_AFTER.csv`. O‘zingiz fayl yuklasangiz, u darhol almashtiriladi.")
+
+    if (before_file is None or after_file is None) and not is_demo_diff:
+        if before_file is None and after_file is None:
+            st.info("ℹ️ Upload both a **BEFORE** file and an **AFTER** file above to view the version comparison.")
+        elif before_file is not None and after_file is None:
+            st.warning("⚠️ Please upload the **AFTER (new)** file to proceed with comparison.")
+        elif before_file is None and after_file is not None:
+            st.warning("⚠️ Please upload the **BEFORE (old)** file to proceed with comparison.")
+    else:
+        if is_demo_diff:
+            df_b = pd.read_csv("M3C4_BEFORE.csv", dtype=str, keep_default_na=False, encoding="utf-8")
+            df_a = pd.read_csv("M3C4_AFTER.csv", dtype=str, keep_default_na=False, encoding="utf-8")
+        else:
+            # Read both files keeping literal string values and leading zeros
+            try:
+                before_file.seek(0)
+                try:
+                    df_b = pd.read_csv(before_file, dtype=str, keep_default_na=False, encoding="utf-8")
+                except UnicodeDecodeError:
+                    before_file.seek(0)
+                    df_b = pd.read_csv(before_file, dtype=str, keep_default_na=False, encoding="latin1")
+
+                after_file.seek(0)
+                try:
+                    df_a = pd.read_csv(after_file, dtype=str, keep_default_na=False, encoding="utf-8")
+                except UnicodeDecodeError:
+                    after_file.seek(0)
+                    df_a = pd.read_csv(after_file, dtype=str, keep_default_na=False, encoding="latin1")
+            except Exception as e:
+                st.error(f"❌ Error reading comparison CSV files: {e}")
+                df_b = None
+                df_a = None
+
+        if df_b is not None and df_a is not None:
+            # Calculate summary metrics across every row
+            b_rows, a_rows = len(df_b), len(df_a)
+            d_rows = a_rows - b_rows
+
+            b_cols, a_cols = len(df_b.columns), len(df_a.columns)
+            d_cols = a_cols - b_cols
+
+            b_miss = sum(1 for c in df_b.columns for v in df_b[c] if is_missing_cell(v))
+            a_miss = sum(1 for c in df_a.columns for v in df_a[c] if is_missing_cell(v))
+            d_miss = a_miss - b_miss
+
+            # Direction Banner
             st.markdown(
                 f"""
-                - **Net Row Change**: $\\Delta \\text{{Rows}} = \\text{{AFTER}} - \\text{{BEFORE}} = {a_rows} - {b_rows} = {d_rows:+d}$
-                - **Net Column Change**: $\\Delta \\text{{Cols}} = \\text{{AFTER}} - \\text{{BEFORE}} = {a_cols} - {b_cols} = {d_cols:+d}$
-                - **Net Missing Cells**: $\\Delta \\text{{Missing}} = \\text{{AFTER}} - \\text{{BEFORE}} = {a_miss} - {b_miss} = {d_miss:+d}$
-                - **Why Net Rows $\\ne$ Added Records**:
-                  Net row count indicates overall dataset volume, but hides simultaneous arrivals and departures:
-                  $$\\Delta \\text{{Rows}} = \\text{{Added Records}} - \\text{{Removed Records}}$$
-                  *Example*: If 3 records arrive and 2 records depart, the net row delta is $+1$, but **5 records** actually changed. A unique, non-blank ID is required to reveal the true arrivals ($S_{{after}} \\setminus S_{{before}}$) and departures ($S_{{before}} \\setminus S_{{after}}$).
-                """
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 18px; margin: 12px 0 20px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <span style="font-size: 13px; font-weight: 700; color: #475569;">Comparison Direction:</span>
+                        <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: #0b192c; margin-left: 6px;">BEFORE (<b>{before_file.name}</b>) ➔ AFTER (<b>{after_file.name}</b>)</span>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #64748b;">Formula: <b>Δ = AFTER − BEFORE</b></span>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
             )
 
-        # Collapsible 1: Column Schema Changes
-        with st.expander("🔍 Column Schema Changes (Added & Removed Columns)", expanded=True):
-            added_cols = [c for c in df_a.columns if c not in df_b.columns]
-            removed_cols = [c for c in df_b.columns if c not in df_a.columns]
-            common_cols = [c for c in df_b.columns if c in df_a.columns]
+            # Three Top Summary Cards
+            c1, c2, c3 = st.columns(3)
 
-            if not added_cols and not removed_cols:
-                st.info(f"ℹ️ **Unchanged**: All {len(common_cols)} columns match exactly between BEFORE and AFTER.")
-            else:
-                col_sch1, col_sch2, col_sch3 = st.columns(3)
-                with col_sch1:
-                    st.markdown(f"**Added Columns ({len(added_cols)}):**")
-                    if added_cols:
-                        for c in added_cols:
-                            st.markdown(f'<span class="badge-added">+ {c}</span>', unsafe_allow_html=True)
-                    else:
-                        st.caption("None")
-                with col_sch2:
-                    st.markdown(f"**Removed Columns ({len(removed_cols)}):**")
-                    if removed_cols:
-                        for c in removed_cols:
-                            st.markdown(f'<span class="badge-removed">− {c}</span>', unsafe_allow_html=True)
-                    else:
-                        st.caption("None")
-                with col_sch3:
-                    st.markdown(f"**Common Columns ({len(common_cols)}):**")
-                    st.markdown(f'<span class="badge-unchanged">{len(common_cols)} common</span>', unsafe_allow_html=True)
-                    st.caption(", ".join(common_cols))
-
-        # Collapsible 2: Missing Counts in Common Columns
-        with st.expander("📊 Missing Counts in Common Columns (Aligned by Name)", expanded=True):
-            if not common_cols:
-                st.warning("⚠️ No common columns found between BEFORE and AFTER to compare missing counts.")
-            else:
-                st.caption(
-                    "ℹ️ *Why missing counts in a column can stay constant: If an existing missing record was filled but a new arrival has a missing cell, the column count remains identical even though the affected record changed. Total missing count alone does not prove all records are clean.*"
+            with c1:
+                row_delta_str = f"{d_rows:+d} net rows" if d_rows != 0 else "0 net rows"
+                st.metric(
+                    label="Row Count",
+                    value=f"{b_rows:,} → {a_rows:,}",
+                    delta=row_delta_str,
+                    delta_color="off"
                 )
-                missing_rows = []
-                for c in common_cols:
-                    b_cnt = sum(1 for v in df_b[c] if is_missing_cell(v))
-                    a_cnt = sum(1 for v in df_a[c] if is_missing_cell(v))
-                    diff = a_cnt - b_cnt
-                    if diff < 0:
-                        status = f"Reduced ({diff:+d})"
-                    elif diff > 0:
-                        status = f"Increased ({diff:+d})"
-                    elif b_cnt > 0:
-                        status = "Unchanged (with missing)"
-                    else:
-                        status = "0 missing"
-                    missing_rows.append({
-                        "Column Name": c,
-                        "BEFORE Missing": b_cnt,
-                        "AFTER Missing": a_cnt,
-                        "Difference (Δ = AFTER − BEFORE)": f"{diff:+d}" if diff != 0 else "0",
-                        "Status": status
-                    })
-                st.dataframe(pd.DataFrame(missing_rows), use_container_width=True, hide_index=True)
+                if d_rows > 0:
+                    st.markdown(f'<span class="badge-added">+ Added ({d_rows:+d})</span>', unsafe_allow_html=True)
+                elif d_rows < 0:
+                    st.markdown(f'<span class="badge-removed">− Removed ({d_rows:+d})</span>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<span class="badge-unchanged">Unchanged (0)</span>', unsafe_allow_html=True)
 
-        # Collapsible 3: Record-Level Comparison (Added & Removed Records)
-        with st.expander("🆔 Record-Level Comparison (Added & Removed Records)", expanded=True):
-            id_options = ["(None / Select ID Column)"] + common_cols
-            default_idx = 0
-            if "row_id" in common_cols:
-                default_idx = id_options.index("row_id")
-            else:
-                for idx, opt in enumerate(id_options):
-                    if any(k in opt.lower() for k in ["id", "code", "key"]):
-                        default_idx = idx
-                        break
+            with c2:
+                col_delta_str = f"{d_cols:+d} net columns" if d_cols != 0 else "0 net columns"
+                st.metric(
+                    label="Column Count",
+                    value=f"{b_cols:,} → {a_cols:,}",
+                    delta=col_delta_str,
+                    delta_color="off"
+                )
+                if d_cols > 0:
+                    st.markdown(f'<span class="badge-added">+ Added ({d_cols:+d})</span>', unsafe_allow_html=True)
+                elif d_cols < 0:
+                    st.markdown(f'<span class="badge-removed">− Removed ({d_cols:+d})</span>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<span class="badge-unchanged">Unchanged (0)</span>', unsafe_allow_html=True)
 
-            selected_id = st.selectbox(
-                "Select common ID column for record matching:",
-                options=id_options,
-                index=default_idx,
-                help="A valid ID column must be completely non-blank and unique in both files. Record matching uses exact text comparison."
+            with c3:
+                miss_delta_str = f"{d_miss:+d} net missing" if d_miss != 0 else "0 net missing"
+                st.metric(
+                    label="Missing Cells (Whole Table)",
+                    value=f"{b_miss:,} → {a_miss:,}",
+                    delta=miss_delta_str,
+                    delta_color="off"
+                )
+                if d_miss < 0:
+                    st.markdown(f'<span class="badge-added">Reduced ({d_miss:+d})</span>', unsafe_allow_html=True)
+                elif d_miss > 0:
+                    st.markdown(f'<span class="badge-removed">Increased ({d_miss:+d})</span>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<span class="badge-unchanged">Unchanged (0)</span>', unsafe_allow_html=True)
+
+            st.caption(
+                "ℹ️ *Note: Missing cells include empty strings and whitespace-only cells. Numerical/string 0 and literal 'NA' / 'null' are treated as valid values. "
+                "Delta is calculated as NEW − OLD. Color describes a difference, not data quality.*"
             )
 
-            if selected_id == "(None / Select ID Column)":
-                st.info("ℹ️ **Record matching unavailable**: Please select a valid common ID column above to compare added and removed records.")
-            else:
-                s_b = df_b[selected_id].astype(str)
-                s_a = df_a[selected_id].astype(str)
+            if d_rows == 0 and d_cols == 0 and d_miss == 0 and list(df_b.columns) == list(df_a.columns) and df_b.equals(df_a):
+                st.success("✅ **Identical Datasets**: All rows, columns, and cell values are identical between BEFORE and AFTER.")
 
-                b_blanks = sum(1 for v in s_b if is_missing_cell(v))
-                a_blanks = sum(1 for v in s_a if is_missing_cell(v))
+            with st.expander("📐 Mathematical Breakdown of Calculations (Delta vs Arrivals/Departures)", expanded=False):
+                st.markdown(
+                    f"""
+                    - **Net Row Change**: $\\Delta \\text{{Rows}} = \\text{{AFTER}} - \\text{{BEFORE}} = {a_rows} - {b_rows} = {d_rows:+d}$
+                    - **Net Column Change**: $\\Delta \\text{{Cols}} = \\text{{AFTER}} - \\text{{BEFORE}} = {a_cols} - {b_cols} = {d_cols:+d}$
+                    - **Net Missing Cells**: $\\Delta \\text{{Missing}} = \\text{{AFTER}} - \\text{{BEFORE}} = {a_miss} - {b_miss} = {d_miss:+d}$
+                    - **Why Net Rows $\\ne$ Added Records**:
+                      Net row count indicates overall dataset volume, but hides simultaneous arrivals and departures:
+                      $$\\Delta \\text{{Rows}} = \\text{{Added Records}} - \\text{{Removed Records}}$$
+                      *Example*: If 3 records arrive and 2 records depart, the net row delta is $+1$, but **5 records** actually changed. A unique, non-blank ID is required to reveal the true arrivals ($S_{{after}} \\setminus S_{{before}}$) and departures ($S_{{before}} \\setminus S_{{after}}$).
+                    """
+                )
 
-                b_dups = len(s_b) - len(s_b.unique())
-                a_dups = len(s_a) - len(s_a.unique())
+            # Collapsible 1: Column Schema Changes
+            with st.expander("🔍 Column Schema Changes (Added & Removed Columns)", expanded=True):
+                added_cols = [c for c in df_a.columns if c not in df_b.columns]
+                removed_cols = [c for c in df_b.columns if c not in df_a.columns]
+                common_cols = [c for c in df_b.columns if c in df_a.columns]
 
-                if b_blanks > 0 or a_blanks > 0:
-                    st.error(
-                        f"❌ **Record matching unavailable**: Selected ID column '{selected_id}' contains blank or whitespace-only values "
-                        f"(BEFORE: {b_blanks} blank(s), AFTER: {a_blanks} blank(s)). "
-                        f"An ID column must be completely non-blank in both files."
-                    )
-                elif b_dups > 0 or a_dups > 0:
-                    dup_info = []
-                    if b_dups > 0:
-                        dup_examples_b = list(s_b[s_b.duplicated()].unique()[:3])
-                        dup_info.append(f"BEFORE has {b_dups} duplicate ID(s), e.g. {dup_examples_b}")
-                    if a_dups > 0:
-                        dup_examples_a = list(s_a[s_a.duplicated()].unique()[:3])
-                        dup_info.append(f"AFTER has {a_dups} duplicate ID(s), e.g. {dup_examples_a}")
-                    st.error(
-                        f"❌ **Record matching unavailable**: Selected ID column '{selected_id}' contains duplicate values ({'; '.join(dup_info)}). "
-                        f"An ID column must be unique in both files. Summary counts above remain available."
-                    )
+                if not added_cols and not removed_cols:
+                    st.info(f"ℹ️ **Unchanged**: All {len(common_cols)} columns match exactly between BEFORE and AFTER.")
                 else:
-                    # Valid ID
-                    set_b = set(s_b)
-                    set_a = set(s_a)
-
-                    added_ids = [i for i in s_a if i not in set_b]
-                    removed_ids = [i for i in s_b if i not in set_a]
-                    common_ids = [i for i in s_b if i in set_a]
-
-                    rec_c1, rec_c2, rec_c3 = st.columns(3)
-                    with rec_c1:
-                        st.metric(label="Added Records", value=f"{len(added_ids):,}", delta=f"+{len(added_ids)}" if len(added_ids) > 0 else "0", delta_color="off")
-                        if len(added_ids) > 0:
-                            st.markdown(f'<span class="badge-added">+ Added ({len(added_ids)})</span>', unsafe_allow_html=True)
+                    col_sch1, col_sch2, col_sch3 = st.columns(3)
+                    with col_sch1:
+                        st.markdown(f"**Added Columns ({len(added_cols)}):**")
+                        if added_cols:
+                            for c in added_cols:
+                                st.markdown(f'<span class="badge-added">+ {c}</span>', unsafe_allow_html=True)
                         else:
-                            st.markdown('<span class="badge-unchanged">None</span>', unsafe_allow_html=True)
-                    with rec_c2:
-                        st.metric(label="Removed Records", value=f"{len(removed_ids):,}", delta=f"-{len(removed_ids)}" if len(removed_ids) > 0 else "0", delta_color="off")
-                        if len(removed_ids) > 0:
-                            st.markdown(f'<span class="badge-removed">− Removed ({len(removed_ids)})</span>', unsafe_allow_html=True)
+                            st.caption("None")
+                    with col_sch2:
+                        st.markdown(f"**Removed Columns ({len(removed_cols)}):**")
+                        if removed_cols:
+                            for c in removed_cols:
+                                st.markdown(f'<span class="badge-removed">− {c}</span>', unsafe_allow_html=True)
                         else:
-                            st.markdown('<span class="badge-unchanged">None</span>', unsafe_allow_html=True)
-                    with rec_c3:
-                        st.metric(label="Common / Unchanged IDs", value=f"{len(common_ids):,}", delta="Identical in both", delta_color="off")
-                        st.markdown('<span class="badge-unchanged">Common</span>', unsafe_allow_html=True)
+                            st.caption("None")
+                    with col_sch3:
+                        st.markdown(f"**Common Columns ({len(common_cols)}):**")
+                        st.markdown(f'<span class="badge-unchanged">{len(common_cols)} common</span>', unsafe_allow_html=True)
+                        st.caption(", ".join(common_cols))
 
+            # Collapsible 2: Missing Counts in Common Columns
+            with st.expander("📊 Missing Counts in Common Columns (Aligned by Name)", expanded=True):
+                if not common_cols:
+                    st.warning("⚠️ No common columns found between BEFORE and AFTER to compare missing counts.")
+                else:
                     st.caption(
-                        f"ℹ️ *With ID '{selected_id}', +{len(added_ids)} arrivals and −{len(removed_ids)} departures explain the net row change ({d_rows:+d}). "
-                        f"Reordered rows with identical IDs do not create additions or removals.*"
+                        "ℹ️ *Why missing counts in a column can stay constant: If an existing missing record was filled but a new arrival has a missing cell, the column count remains identical even though the affected record changed. Total missing count alone does not prove all records are clean.*"
+                    )
+                    missing_rows = []
+                    for c in common_cols:
+                        b_cnt = sum(1 for v in df_b[c] if is_missing_cell(v))
+                        a_cnt = sum(1 for v in df_a[c] if is_missing_cell(v))
+                        diff = a_cnt - b_cnt
+                        if diff < 0:
+                            status = f"Reduced ({diff:+d})"
+                        elif diff > 0:
+                            status = f"Increased ({diff:+d})"
+                        elif b_cnt > 0:
+                            status = "Unchanged (with missing)"
+                        else:
+                            status = "0 missing"
+                        missing_rows.append({
+                            "Column Name": c,
+                            "BEFORE Missing": b_cnt,
+                            "AFTER Missing": a_cnt,
+                            "Difference (Δ = AFTER − BEFORE)": f"{diff:+d}" if diff != 0 else "0",
+                            "Status": status
+                        })
+                    st.dataframe(pd.DataFrame(missing_rows), use_container_width=True, hide_index=True)
+
+            # Collapsible 3: Record-Level Comparison (Added & Removed Records)
+            with st.expander("🆔 Record-Level Comparison (Added & Removed Records)", expanded=True):
+                id_options = ["(None / Select ID Column)"] + common_cols
+                default_idx = 0
+                if "row_id" in common_cols:
+                    default_idx = id_options.index("row_id")
+                else:
+                    for idx, opt in enumerate(id_options):
+                        if any(k in opt.lower() for k in ["id", "code", "key"]):
+                            default_idx = idx
+                            break
+
+                selected_id = st.selectbox(
+                    "Select common ID column for record matching:",
+                    options=id_options,
+                    index=default_idx,
+                    help="A valid ID column must be completely non-blank and unique in both files. Record matching uses exact text comparison."
+                )
+
+                if selected_id == "(None / Select ID Column)":
+                    st.info("ℹ️ **Record matching unavailable**: Please select a valid common ID column above to compare added and removed records.")
+                else:
+                    s_b = df_b[selected_id].astype(str)
+                    s_a = df_a[selected_id].astype(str)
+
+                    b_blanks = sum(1 for v in s_b if is_missing_cell(v))
+                    a_blanks = sum(1 for v in s_a if is_missing_cell(v))
+
+                    b_dups = len(s_b) - len(s_b.unique())
+                    a_dups = len(s_a) - len(s_a.unique())
+
+                    if b_blanks > 0 or a_blanks > 0:
+                        st.error(
+                            f"❌ **Record matching unavailable**: Selected ID column '{selected_id}' contains blank or whitespace-only values "
+                            f"(BEFORE: {b_blanks} blank(s), AFTER: {a_blanks} blank(s)). "
+                            f"An ID column must be completely non-blank in both files."
+                        )
+                    elif b_dups > 0 or a_dups > 0:
+                        dup_info = []
+                        if b_dups > 0:
+                            dup_examples_b = list(s_b[s_b.duplicated()].unique()[:3])
+                            dup_info.append(f"BEFORE has {b_dups} duplicate ID(s), e.g. {dup_examples_b}")
+                        if a_dups > 0:
+                            dup_examples_a = list(s_a[s_a.duplicated()].unique()[:3])
+                            dup_info.append(f"AFTER has {a_dups} duplicate ID(s), e.g. {dup_examples_a}")
+                        st.error(
+                            f"❌ **Record matching unavailable**: Selected ID column '{selected_id}' contains duplicate values ({'; '.join(dup_info)}). "
+                            f"An ID column must be unique in both files. Summary counts above remain available."
+                        )
+                    else:
+                        # Valid ID
+                        set_b = set(s_b)
+                        set_a = set(s_a)
+
+                        added_ids = [i for i in s_a if i not in set_b]
+                        removed_ids = [i for i in s_b if i not in set_a]
+                        common_ids = [i for i in s_b if i in set_a]
+
+                        rec_c1, rec_c2, rec_c3 = st.columns(3)
+                        with rec_c1:
+                            st.metric(label="Added Records", value=f"{len(added_ids):,}", delta=f"+{len(added_ids)}" if len(added_ids) > 0 else "0", delta_color="off")
+                            if len(added_ids) > 0:
+                                st.markdown(f'<span class="badge-added">+ Added ({len(added_ids)})</span>', unsafe_allow_html=True)
+                            else:
+                                st.markdown('<span class="badge-unchanged">None</span>', unsafe_allow_html=True)
+                        with rec_c2:
+                            st.metric(label="Removed Records", value=f"{len(removed_ids):,}", delta=f"-{len(removed_ids)}" if len(removed_ids) > 0 else "0", delta_color="off")
+                            if len(removed_ids) > 0:
+                                st.markdown(f'<span class="badge-removed">− Removed ({len(removed_ids)})</span>', unsafe_allow_html=True)
+                            else:
+                                st.markdown('<span class="badge-unchanged">None</span>', unsafe_allow_html=True)
+                        with rec_c3:
+                            st.metric(label="Common / Unchanged IDs", value=f"{len(common_ids):,}", delta="Identical in both", delta_color="off")
+                            st.markdown('<span class="badge-unchanged">Common</span>', unsafe_allow_html=True)
+
+                        st.caption(
+                            f"ℹ️ *With ID '{selected_id}', +{len(added_ids)} arrivals and −{len(removed_ids)} departures explain the net row change ({d_rows:+d}). "
+                            f"Reordered rows with identical IDs do not create additions or removals.*"
+                        )
+
+                        if len(added_ids) == 0 and len(removed_ids) == 0:
+                            st.success(f"✅ **No record additions or removals**: All {len(common_ids)} record IDs match between BEFORE and AFTER.")
+
+                        if added_ids:
+                            st.markdown(f"##### 🟢 Added Records ({len(added_ids)}) — IDs: `{', '.join(added_ids)}`")
+                            df_added = df_a[df_a[selected_id].isin(added_ids)]
+                            st.dataframe(df_added, use_container_width=True, hide_index=True)
+
+                        if removed_ids:
+                            st.markdown(f"##### 🔴 Removed Records ({len(removed_ids)}) — IDs: `{', '.join(removed_ids)}`")
+                            df_removed = df_b[df_b[selected_id].isin(removed_ids)]
+                            st.dataframe(df_removed, use_container_width=True, hide_index=True)
+
+
+
+def render_ml_compare_section():
+    st.divider()
+    st.header("10. Compare Two Experiment Summaries (M4C5 Upgrade)")
+    st.caption(
+        "Upload two machine learning experiment JSON summaries (format_version 1) to inspect metric deltas, "
+        "compare model settings, evaluate train-validation gaps, and rigorously verify recorded condition context."
+    )
+
+    demo_ml_c1, demo_ml_c2 = st.columns([1, 4])
+    with demo_ml_c1:
+        if st.button("🚀 Demo JSONlarni yuklash", key="btn_demo_ml_load", help="M4C5 Run A va Run B JSON test fayllarini yuklash"):
+            st.session_state["use_demo_ml"] = True
+            st.rerun()
+    with demo_ml_c2:
+        if st.session_state.get("use_demo_ml", False):
+            if st.button("✖️ Namunani tozalash", key="btn_demo_ml_clear"):
+                st.session_state["use_demo_ml"] = False
+                st.rerun()
+
+
+    col_exp_a, col_exp_b = st.columns(2)
+    with col_exp_a:
+        st.markdown("#### 🧪 Experiment A (Baseline / Reference)")
+        exp_a_file = st.file_uploader(
+            "Upload Experiment A (JSON):",
+            type=["json"],
+            key="exp_uploader_a",
+            help="Upload the reference experiment summary JSON file."
+        )
+        if exp_a_file:
+            st.caption(f"📄 **Filename:** `{exp_a_file.name}` ({exp_a_file.size / 1024:.1f} KB)")
+
+    with col_exp_b:
+        st.markdown("#### 🧪 Experiment B (Comparison / Modified)")
+        exp_b_file = st.file_uploader(
+            "Upload Experiment B (JSON):",
+            type=["json"],
+            key="exp_uploader_b",
+            help="Upload the comparison experiment summary JSON file."
+        )
+        if exp_b_file:
+            st.caption(f"📄 **Filename:** `{exp_b_file.name}` ({exp_b_file.size / 1024:.1f} KB)")
+
+    is_demo_ml = st.session_state.get("use_demo_ml", False) and (exp_a_file is None) and (exp_b_file is None)
+    if is_demo_ml:
+        st.info("ℹ️ **Namunaviy test fayllari faol:** `M4C5_RUN_A.json` (Baseline) va `M4C5_RUN_B.json` (Modified). O‘zingiz fayl yuklasangiz, u darhol almashtiriladi.")
+
+    if (exp_a_file is None or exp_b_file is None) and not is_demo_ml:
+        if exp_a_file is None and exp_b_file is None:
+            st.info("ℹ️ Upload both an **Experiment A** JSON and an **Experiment B** JSON above to view the experiment comparison.")
+        elif exp_a_file is not None and exp_b_file is None:
+            st.warning("⚠️ Please upload the **Experiment B (comparison)** JSON to proceed with comparison.")
+        elif exp_a_file is None and exp_b_file is not None:
+            st.warning("⚠️ Please upload the **Experiment A (baseline)** JSON to proceed with comparison.")
+    else:
+        if is_demo_ml:
+            with open("M4C5_RUN_A.json", "r", encoding="utf-8") as f_a:
+                data_a = json.load(f_a)
+            with open("M4C5_RUN_B.json", "r", encoding="utf-8") as f_b:
+                data_b = json.load(f_b)
+            parse_error = False
+            run_id_a = str(data_a.get("run_id", "DEMO_A"))
+            run_id_b = str(data_b.get("run_id", "DEMO_B"))
+            st.caption(f"📁 **Active Files:** `M4C5_RUN_A.json` (run_id: `{run_id_a}`) vs `M4C5_RUN_B.json` (run_id: `{run_id_b}`)")
+        else:
+            # 1. Parse JSON files safely
+            import json
+            import math
+
+            parse_error = False
+            try:
+                exp_a_file.seek(0)
+                data_a = json.loads(exp_a_file.read().decode("utf-8"))
+            except Exception as e:
+                st.error(f"❌ Error reading Experiment A JSON: {e}")
+                parse_error = True
+                data_a = None
+
+            try:
+                exp_b_file.seek(0)
+                data_b = json.loads(exp_b_file.read().decode("utf-8"))
+            except Exception as e:
+                st.error(f"❌ Error reading Experiment B JSON: {e}")
+                parse_error = True
+                data_b = None
+
+        if not parse_error and isinstance(data_a, dict) and isinstance(data_b, dict):
+            # 2. Validate metric values [0, 1]
+            def check_exp_metric(m_dict, metric_name):
+                if metric_name not in m_dict:
+                    return False, f"Missing required metric: {metric_name}"
+                val = m_dict[metric_name]
+                if val is None or not isinstance(val, (int, float)) or isinstance(val, bool):
+                    return False, f"Metric '{metric_name}' must be numeric"
+                if math.isnan(val) or math.isinf(val):
+                    return False, f"Metric '{metric_name}' must be finite"
+                if val < 0.0 or val > 1.0:
+                    return False, f"Metric '{metric_name}' ({val}) is out of valid range [0, 1]"
+                return True, None
+
+            m_a = data_a.get("metrics")
+            m_b = data_b.get("metrics")
+
+            metric_errors = []
+            if not isinstance(m_a, dict):
+                metric_errors.append("Experiment A is missing a valid 'metrics' dictionary")
+            else:
+                for mn in ["f1", "precision", "recall"]:
+                    ok, err = check_exp_metric(m_a, mn)
+                    if not ok:
+                        metric_errors.append(f"Experiment A: {err}")
+                if "train_f1" in m_a:
+                    ok, err = check_exp_metric(m_a, "train_f1")
+                    if not ok:
+                        metric_errors.append(f"Experiment A: {err}")
+
+            if not isinstance(m_b, dict):
+                metric_errors.append("Experiment B is missing a valid 'metrics' dictionary")
+            else:
+                for mn in ["f1", "precision", "recall"]:
+                    ok, err = check_exp_metric(m_b, mn)
+                    if not ok:
+                        metric_errors.append(f"Experiment B: {err}")
+                if "train_f1" in m_b:
+                    ok, err = check_exp_metric(m_b, "train_f1")
+                    if not ok:
+                        metric_errors.append(f"Experiment B: {err}")
+
+            if metric_errors:
+                for me in metric_errors:
+                    st.error(f"❌ {me}")
+                st.stop()
+
+            # Run IDs and Direction Banner
+            run_id_a = str(data_a.get("run_id", "A"))
+            run_id_b = str(data_b.get("run_id", "B"))
+
+            st.markdown(
+                f"""
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 18px; margin: 12px 0 20px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <span style="font-size: 13px; font-weight: 700; color: #475569;">Experiment Direction:</span>
+                        <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: #0b192c; margin-left: 6px;">
+                            A: <b>{exp_a_file.name}</b> (run_id: <code>{run_id_a}</code>) ➔ B: <b>{exp_b_file.name}</b> (run_id: <code>{run_id_b}</code>)
+                        </span>
+                    </div>
+                    <div>
+                        <span style="font-size: 12px; color: #64748b;">Formula: <b>Δ = B − A</b></span>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            # 3. Context Verification & Three Statuses
+            REQUIRED_CONTEXT = [
+                "dataset_id",
+                "split_id",
+                "target",
+                "positive_class",
+                "features",
+                "threshold",
+                "seed",
+                "evaluation_split"
+            ]
+
+            missing_in_a = [f for f in REQUIRED_CONTEXT if f not in data_a or data_a[f] is None]
+            missing_in_b = [f for f in REQUIRED_CONTEXT if f not in data_b or data_b[f] is None]
+
+            diff_list = []
+            if missing_in_a or missing_in_b:
+                exp_status = "Insufficient context"
+                missing_reasons = []
+                if missing_in_a:
+                    missing_reasons.append(f"Experiment A missing: {', '.join(missing_in_a)}")
+                if missing_in_b:
+                    missing_reasons.append(f"Experiment B missing: {', '.join(missing_in_b)}")
+                status_desc = "; ".join(missing_reasons)
+            else:
+                # Check matching
+                if data_a["dataset_id"] != data_b["dataset_id"]:
+                    diff_list.append(f"dataset_id ('{data_a['dataset_id']}' vs '{data_b['dataset_id']}')")
+                if data_a["split_id"] != data_b["split_id"]:
+                    diff_list.append(f"split_id ('{data_a['split_id']}' vs '{data_b['split_id']}')")
+                if data_a["target"] != data_b["target"]:
+                    diff_list.append(f"target ('{data_a['target']}' vs '{data_b['target']}')")
+                if data_a["positive_class"] != data_b["positive_class"]:
+                    diff_list.append(f"positive_class ('{data_a['positive_class']}' vs '{data_b['positive_class']}')")
+                if set(data_a.get("features", [])) != set(data_b.get("features", [])):
+                    diff_list.append("feature set mismatch (elements differ)")
+                if data_a["threshold"] != data_b["threshold"]:
+                    diff_list.append(f"threshold ({data_a['threshold']} vs {data_b['threshold']})")
+                if data_a["seed"] != data_b["seed"]:
+                    diff_list.append(f"seed ({data_a['seed']} vs {data_b['seed']})")
+                if data_a["evaluation_split"] != data_b["evaluation_split"]:
+                    diff_list.append(f"evaluation_split ('{data_a['evaluation_split']}' vs '{data_b['evaluation_split']}')")
+                elif data_a["evaluation_split"] != "validation":
+                    diff_list.append(f"evaluation_split is not 'validation' (both record '{data_a['evaluation_split']}')")
+
+                if not diff_list:
+                    exp_status = "Same recorded conditions"
+                    status_desc = "Recorded labels match; this does not verify the measurements. Model, penalty, and C are compared settings."
+                else:
+                    exp_status = "Conditions differ"
+                    status_desc = f"Recorded conditions differ: {'; '.join(diff_list)}. Direction alone does not establish quality; never choose a winner."
+
+            # Display Status Card
+            if exp_status == "Same recorded conditions":
+                st.success(f"🟢 **Status: Same recorded conditions** — {status_desc}")
+            elif exp_status == "Conditions differ":
+                st.warning(f"🟠 **Status: Conditions differ** — {status_desc}")
+            else:
+                st.error(f"🔴 **Status: Insufficient context** — {status_desc}")
+
+            # 4. Three Main Metric Cards (F1, Precision, Recall Only)
+            f1_a, f1_b = float(m_a["f1"]), float(m_b["f1"])
+            prec_a, prec_b = float(m_a["precision"]), float(m_b["precision"])
+            rec_a, rec_b = float(m_a["recall"]), float(m_b["recall"])
+
+            f1_delta = round(f1_b - f1_a, 2)
+            prec_delta = round(prec_b - prec_a, 2)
+            rec_delta = round(rec_b - rec_a, 2)
+
+            c_m1, c_m2, c_m3 = st.columns(3)
+
+            with c_m1:
+                st.metric(
+                    label="F1 Score",
+                    value=f"{f1_a:.2f} → {f1_b:.2f}",
+                    delta=f"{f1_delta:+.2f}" if f1_delta != 0 else "0.00",
+                    delta_color="off"
+                )
+                if f1_delta > 0:
+                    st.markdown(f'<span class="badge-added">+{f1_delta:.2f} Upward</span>', unsafe_allow_html=True)
+                elif f1_delta < 0:
+                    st.markdown(f'<span class="badge-removed">{f1_delta:.2f} Downward</span>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<span class="badge-unchanged">0.00 Zero</span>', unsafe_allow_html=True)
+
+            with c_m2:
+                st.metric(
+                    label="Precision",
+                    value=f"{prec_a:.2f} → {prec_b:.2f}",
+                    delta=f"{prec_delta:+.2f}" if prec_delta != 0 else "0.00",
+                    delta_color="off"
+                )
+                if prec_delta > 0:
+                    st.markdown(f'<span class="badge-added">+{prec_delta:.2f} Upward</span>', unsafe_allow_html=True)
+                elif prec_delta < 0:
+                    st.markdown(f'<span class="badge-removed">{prec_delta:.2f} Downward</span>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<span class="badge-unchanged">0.00 Zero</span>', unsafe_allow_html=True)
+
+            with c_m3:
+                st.metric(
+                    label="Recall",
+                    value=f"{rec_a:.2f} → {rec_b:.2f}",
+                    delta=f"{rec_delta:+.2f}" if rec_delta != 0 else "0.00",
+                    delta_color="off"
+                )
+                if rec_delta > 0:
+                    st.markdown(f'<span class="badge-added">+{rec_delta:.2f} Upward</span>', unsafe_allow_html=True)
+                elif rec_delta < 0:
+                    st.markdown(f'<span class="badge-removed">{rec_delta:.2f} Downward</span>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<span class="badge-unchanged">0.00 Zero</span>', unsafe_allow_html=True)
+
+            st.caption(
+                "ℹ️ *Note: Delta = B − A. Direction describes a numerical change, not a quality verdict or proof that one run is better. Never choose a winner.*"
+            )
+
+            # 5. Recorded Model Settings Comparison
+            st.markdown("##### ⚙️ Recorded Model Settings")
+            set_col1, set_col2, set_col3 = st.columns(3)
+            with set_col1:
+                st.markdown(f"**Model:** `{data_a.get('model', '—')}` → `{data_b.get('model', '—')}`")
+            with set_col2:
+                st.markdown(f"**Penalty:** `{data_a.get('penalty', '—')}` → `{data_b.get('penalty', '—')}`")
+            with set_col3:
+                c_a = data_a.get("C")
+                c_b = data_b.get("C")
+                if isinstance(c_a, (int, float)) and isinstance(c_b, (int, float)):
+                    c_diff = round(c_b - c_a, 2)
+                    st.markdown(f"**C (Regularization):** `{c_a}` → `{c_b}` (Δ = **{c_diff:+g}**)")
+                else:
+                    st.markdown(f"**C (Regularization):** `{c_a}` → `{c_b}`")
+            st.caption("ℹ️ *Model, penalty, and C are recorded model settings to display: their differences are compared without being treated as a condition mismatch.*")
+
+            # Expandable Detail 1: Train - Validation F1 Gap
+            with st.expander("🔍 Train − Validation F1 Gap", expanded=True):
+                if data_a.get("evaluation_split") == "validation" and data_b.get("evaluation_split") == "validation":
+                    if "train_f1" in m_a and "train_f1" in m_b:
+                        train_f1_a = float(m_a["train_f1"])
+                        train_f1_b = float(m_b["train_f1"])
+                        gap_a = round(train_f1_a - f1_a, 2)
+                        gap_b = round(train_f1_b - f1_b, 2)
+                        gap_diff = round(gap_b - gap_a, 2)
+
+                        gap_c1, gap_c2, gap_c3 = st.columns(3)
+                        with gap_c1:
+                            st.metric("Experiment A Gap (Train − Val)", f"{gap_a:.2f}")
+                            st.caption(f"Train: {train_f1_a:.2f} − Val: {f1_a:.2f}")
+                        with gap_c2:
+                            st.metric("Experiment B Gap (Train − Val)", f"{gap_b:.2f}")
+                            st.caption(f"Train: {train_f1_b:.2f} − Val: {f1_b:.2f}")
+                        with gap_c3:
+                            st.metric("Gap Change (B − A)", f"{gap_diff:+.2f}")
+                            st.caption(f"{gap_a:.2f} → {gap_b:.2f}")
+
+                        st.caption(
+                            "ℹ️ *Train − validation F1 gap is available only for validation results. "
+                            "A smaller gap may indicate less generalization gap, but must be interpreted on matching validation splits.*"
+                        )
+                    else:
+                        st.info("ℹ️ Train − Validation F1 gap unavailable: 'train_f1' metric is missing in one or both experiment summaries.")
+                else:
+                    st.info(
+                        "ℹ️ **Train − Validation F1 gap is unavailable**: The gap can only be calculated when both runs record "
+                        "`evaluation_split = 'validation'`. (For example, runs evaluated on 'train' or incomplete context records cannot produce a validation gap)."
                     )
 
-                    if len(added_ids) == 0 and len(removed_ids) == 0:
-                        st.success(f"✅ **No record additions or removals**: All {len(common_ids)} record IDs match between BEFORE and AFTER.")
+            # Expandable Detail 2: Detailed Context Verification Matrix
+            with st.expander("📋 Recorded Context Verification Matrix", expanded=False):
+                matrix_rows = []
+                for cf in REQUIRED_CONTEXT:
+                    val_a = data_a.get(cf)
+                    val_b = data_b.get(cf)
+                    if val_a is None or val_b is None:
+                        mtch = "❌ Missing Context"
+                    elif cf == "features":
+                        mtch = "✅ Match (Set identical)" if set(val_a) == set(val_b) else "❌ Mismatch"
+                        val_a = ", ".join(val_a) if isinstance(val_a, list) else str(val_a)
+                        val_b = ", ".join(val_b) if isinstance(val_b, list) else str(val_b)
+                    elif cf == "evaluation_split":
+                        if val_a == val_b == "validation":
+                            mtch = "✅ Match (validation)"
+                        elif val_a == val_b:
+                            mtch = f"⚠️ Not validation ('{val_a}')"
+                        else:
+                            mtch = f"❌ Split Mismatch ('{val_a}' vs '{val_b}')"
+                    else:
+                        mtch = "✅ Match" if val_a == val_b else "❌ Mismatch"
 
-                    if added_ids:
-                        st.markdown(f"##### 🟢 Added Records ({len(added_ids)}) — IDs: `{', '.join(added_ids)}`")
-                        df_added = df_a[df_a[selected_id].isin(added_ids)]
-                        st.dataframe(df_added, use_container_width=True, hide_index=True)
+                    matrix_rows.append({
+                        "Context Field": cf,
+                        "Experiment A": str(val_a),
+                        "Experiment B": str(val_b),
+                        "Match Status": mtch
+                    })
+                st.dataframe(pd.DataFrame(matrix_rows), use_container_width=True, hide_index=True)
 
-                    if removed_ids:
-                        st.markdown(f"##### 🔴 Removed Records ({len(removed_ids)}) — IDs: `{', '.join(removed_ids)}`")
-                        df_removed = df_b[df_b[selected_id].isin(removed_ids)]
-                        st.dataframe(df_removed, use_container_width=True, hide_index=True)
+            # Expandable Detail 3: Raw JSON Records
+            with st.expander("📄 Raw Experiment JSON Records", expanded=False):
+                raw_c1, raw_c2 = st.columns(2)
+                with raw_c1:
+                    st.markdown(f"**Experiment A ({run_id_a}):**")
+                    st.json(data_a)
+                with raw_c2:
+                    st.markdown(f"**Experiment B ({run_id_b}):**")
+                    st.json(data_b)
 
-# -------------------------------------------------------------
-# 10. Compare Two Experiment Summaries (M4C5 Upgrade)
-# -------------------------------------------------------------
-st.divider()
-st.header("10. Compare Two Experiment Summaries (M4C5 Upgrade)")
-st.caption(
-    "Upload two machine learning experiment JSON summaries (format_version 1) to inspect metric deltas, "
-    "compare model settings, evaluate train-validation gaps, and rigorously verify recorded condition context."
+
+
+
+def render_docs_section():
+    st.header("📚 Metodologiya, Formulalar va Qo‘llanma")
+    st.caption("Platformada qo‘llanilgan barcha hisob-kitoblar, statistik mezonlar va tamoyillarning to‘liq ilmiy tavsifi.")
+    
+    doc1, doc2 = st.columns(2)
+    with doc1:
+        st.markdown(
+            """
+            ### 1. 🔍 Faqat Probelli Kataklar (Spaces-Only Cells)
+            - **Muammo**: CSV fayllarda inson ko‘ziga bo‘sh ko‘rinadigan, lekin ichida `"   "` bo‘lgan kataklar uchraydi. Standart `df.isna()` ularni matn deb biladi.
+            - **Yechim**: Har bir katak `r"^\\s+$"` muntazam ifodasi orqali tekshiriladi.
+            - **Qoida**: Son `0`, matn `"0"`, `"NA"`, `"null"` qiymatlari aslo probel yoki bo‘sh katak deb hisoblanmaydi!
+            
+            ### 2. 🔬 1.5 × IQR Tukey Anomaliyalar Qoidasi
+            - Jon Tyuki (John Tukey) tomonidan ishlab chiqilgan mustahkam (robust) statistika usuli:
+              - $Q_1$ = 25-persentil (birinchi kvartil)
+              - $Q_3$ = 75-persentil (uchinchi kvartil)
+              - $\\text{IQR} = Q_3 - Q_1$ (kvartillararo oraliq)
+              - Pastki chegara: $[Q_1 - 1.5\\text{IQR}]$
+              - Yuqori chegara: $[Q_3 + 1.5\\text{IQR}]$
+            - Chegaralardan tashqaridagi har qanday son *Needs inspection* (Tekshirish zarur) deb belgilanadi.
+            
+            ### 3. 📐 Masshtablash (Scaling) Prevyusi
+            - **MinMax Scaler**: $x_{\\text{norm}} = (x - x_{\\min}) / (x_{\\max} - x_{\\min})$ — qiymatlarni $[0, 1]$ oralig‘iga tushiradi.
+            - **Standard Scaler (Z-Score)**: $z = (x - \\mu) / \\sigma$ ($ddof=0$) — o‘rtachasi 0, dispersiyasi 1 bo‘lgan standart ko‘rinishga keltiradi.
+            """
+        )
+    with doc2:
+        st.markdown(
+            """
+            ### 4. 📈 Asimmetriya (Skewness) va Cho‘qqisimonlik (Kurtosis)
+            - **Skewness $\\approx 0$**: Normal, simmetrik taqsimot (qo‘ng‘iroqsimon).
+            - **Skewness $> 0.5$**: O‘ngga cho‘zilgan taqsimot (maoshlar, daromad kabi).
+            - **Skewness $< -0.5$**: Chapga cho‘zilgan taqsimot.
+            - **Kurtosis**: Taqsimot cho‘qqisining qanchalik o‘tkir yoki yassi ekanini bildiradi.
+            
+            ### 5. 🔗 Korrelyatsiya va Multikollinearlik
+            - **Pearson ($r$)**: Chiziqli bog‘liqlik $(-1 \\le r \\le 1)$.
+            - **Spearman**: Monoton (tartibli) bog‘liqlik.
+            - **Multikollinearlik ($|r| \\ge 0.85$)**: Ikkita xususiyat bir-birini deyarli 100% takrorlaydi. Bunday ustunlar chiziqli modellar og‘irliklarini beqaror qiladi.
+            
+            ### 6. 🧪 ML Eksperimentlar Taqqoslash (M4C5)
+            - **Yo‘nalishning o‘zi sifatni belgilamaydi**: $F_1$ yoki Recall oshgani model mutlaq g‘olib degani emas!
+            - **Sharoit bir xilligi talabi**: `dataset_id`, `split_id`, `target`, `positive_class`, `features` (tartibsiz to‘plam), `threshold`, `seed`, `evaluation_split = "validation"` to‘liq mos bo‘lishi shart!
+            - **Overfitting Gap**: $\\text{Gap} = train\\_f1 - val\\_f1$. Faqat ikkala model ham validation splitda o‘lchangan bo‘lsagina taqqoslash mumkin.
+            """
+        )
+
+# App Hero Banner
+st.markdown(
+    f"""
+    <div class="hero-banner">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
+            {{f'<img src="data:image/svg+xml;base64,{{icon_b64}}" width="48" height="48" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(5, 55, 255, 0.15);" alt="Tahlilchi AI Logo" />' if icon_b64 else ''}}
+            <div>
+                <div class="hero-badge">Tahlilchi AI · AI/ML Engineering & Analytics</div>
+                <div class="hero-title">📊 Dataset Explorer AI</div>
+            </div>
+        </div>
+        <p class="hero-desc">
+            Tabulyar CSV ma'lumotlar to‘plamlarini tahlil qilish, 1.5×IQR anomaliyalarni tekshirish, CSV versiyalarini (BEFORE vs AFTER) hamda mashina o‘rganishi eksperimentlari xulosalarini (M4C5) o‘zaro taqqoslash uchun zamonaviy tahlil platformasi.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
 )
 
-col_exp_a, col_exp_b = st.columns(2)
-with col_exp_a:
-    st.markdown("#### 🧪 Experiment A (Baseline / Reference)")
-    exp_a_file = st.file_uploader(
-        "Upload Experiment A (JSON):",
-        type=["json"],
-        key="exp_uploader_a",
-        help="Upload the reference experiment summary JSON file."
+# 4 Main Tabs Navigation
+tab_eda, tab_csv_diff, tab_ml_compare, tab_docs = st.tabs([
+    "📊 1. Yakka Fayl Tahlili (Single EDA)",
+    "🔄 2. CSV Versiyalar (BEFORE vs AFTER)",
+    "🧪 3. ML Eksperimentlar (M4C5)",
+    "📚 4. Metodologiya & Qo‘llanma"
+])
+
+# -------------------------------------------------------------
+# TAB 1: Single File EDA
+# -------------------------------------------------------------
+with tab_eda:
+    st.markdown(
+        """
+        <div class="steps-ribbon">
+            <div class="step-chip"><span class="step-num">1</span> 📂 Upload</div>
+            <div class="step-chip"><span class="step-num">2</span> 📐 Overview & Health</div>
+            <div class="step-chip"><span class="step-num">3</span> 🔍 Missing & Spaces</div>
+            <div class="step-chip"><span class="step-num">4</span> 📊 Aggregations</div>
+            <div class="step-chip"><span class="step-num">5</span> 🔬 1.5×IQR Outliers</div>
+            <div class="step-chip"><span class="step-num">6</span> 📈 Distributions</div>
+            <div class="step-chip"><span class="step-num">7</span> 🔗 Heatmap</div>
+            <div class="step-chip"><span class="step-num">8</span> 🎯 Feature Selection</div>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
-    if exp_a_file:
-        st.caption(f"📄 **Filename:** `{exp_a_file.name}` ({exp_a_file.size / 1024:.1f} KB)")
 
-with col_exp_b:
-    st.markdown("#### 🧪 Experiment B (Comparison / Modified)")
-    exp_b_file = st.file_uploader(
-        "Upload Experiment B (JSON):",
-        type=["json"],
-        key="exp_uploader_b",
-        help="Upload the comparison experiment summary JSON file."
-    )
-    if exp_b_file:
-        st.caption(f"📄 **Filename:** `{exp_b_file.name}` ({exp_b_file.size / 1024:.1f} KB)")
+    up_col1, up_col2 = st.columns([3, 2])
+    with up_col1:
+        uploaded_file = st.file_uploader(
+            "CSV faylni yuklang (maksimal 5 MB):",
+            type=["csv"],
+            key="main_csv_uploader",
+            help="Standart UTF-8 CSV fayllari (vergul yoki nuqta-vergul bilan ajratilgan)."
+        )
+    with up_col2:
+        st.markdown("#### ⚡ Tezkor Sinov (Demo)")
+        st.caption("Faylingiz bo‘lmasa, tayyor savdo ma'lumotlar to‘plami bilan sinab ko‘ring:")
+        demo_c1, demo_c2 = st.columns(2)
+        with demo_c1:
+            if st.button("🚀 Demo yuklash", key="btn_load_demo_csv", use_container_width=True, help="Superstore savdo ma'lumotlar to‘plamini yuklash"):
+                st.session_state["use_demo_csv"] = True
+                st.rerun()
+        with demo_c2:
+            if st.session_state.get("use_demo_csv", False):
+                if st.button("✖️ Tozalash", key="btn_clear_demo_csv", use_container_width=True):
+                    st.session_state["use_demo_csv"] = False
+                    st.rerun()
 
-if exp_a_file is None or exp_b_file is None:
-    if exp_a_file is None and exp_b_file is None:
-        st.info("ℹ️ Upload both an **Experiment A** JSON and an **Experiment B** JSON above to view the experiment comparison.")
-    elif exp_a_file is not None and exp_b_file is None:
-        st.warning("⚠️ Please upload the **Experiment B (comparison)** JSON to proceed with comparison.")
-    elif exp_a_file is None and exp_b_file is not None:
-        st.warning("⚠️ Please upload the **Experiment A (baseline)** JSON to proceed with comparison.")
-else:
-    # 1. Parse JSON files safely
-    import json
-    import math
+    is_demo_active = (uploaded_file is None) and st.session_state.get("use_demo_csv", False)
+    MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
-    parse_error = False
-    try:
-        exp_a_file.seek(0)
-        data_a = json.loads(exp_a_file.read().decode("utf-8"))
-    except Exception as e:
-        st.error(f"❌ Error reading Experiment A JSON: {e}")
-        parse_error = True
-        data_a = None
-
-    try:
-        exp_b_file.seek(0)
-        data_b = json.loads(exp_b_file.read().decode("utf-8"))
-    except Exception as e:
-        st.error(f"❌ Error reading Experiment B JSON: {e}")
-        parse_error = True
-        data_b = None
-
-    if not parse_error and isinstance(data_a, dict) and isinstance(data_b, dict):
-        # 2. Validate metric values [0, 1]
-        def check_exp_metric(m_dict, metric_name):
-            if metric_name not in m_dict:
-                return False, f"Missing required metric: {metric_name}"
-            val = m_dict[metric_name]
-            if val is None or not isinstance(val, (int, float)) or isinstance(val, bool):
-                return False, f"Metric '{metric_name}' must be numeric"
-            if math.isnan(val) or math.isinf(val):
-                return False, f"Metric '{metric_name}' must be finite"
-            if val < 0.0 or val > 1.0:
-                return False, f"Metric '{metric_name}' ({val}) is out of valid range [0, 1]"
-            return True, None
-
-        m_a = data_a.get("metrics")
-        m_b = data_b.get("metrics")
-
-        metric_errors = []
-        if not isinstance(m_a, dict):
-            metric_errors.append("Experiment A is missing a valid 'metrics' dictionary")
-        else:
-            for mn in ["f1", "precision", "recall"]:
-                ok, err = check_exp_metric(m_a, mn)
-                if not ok:
-                    metric_errors.append(f"Experiment A: {err}")
-            if "train_f1" in m_a:
-                ok, err = check_exp_metric(m_a, "train_f1")
-                if not ok:
-                    metric_errors.append(f"Experiment A: {err}")
-
-        if not isinstance(m_b, dict):
-            metric_errors.append("Experiment B is missing a valid 'metrics' dictionary")
-        else:
-            for mn in ["f1", "precision", "recall"]:
-                ok, err = check_exp_metric(m_b, mn)
-                if not ok:
-                    metric_errors.append(f"Experiment B: {err}")
-            if "train_f1" in m_b:
-                ok, err = check_exp_metric(m_b, "train_f1")
-                if not ok:
-                    metric_errors.append(f"Experiment B: {err}")
-
-        if metric_errors:
-            for me in metric_errors:
-                st.error(f"❌ {me}")
-            st.stop()
-
-        # Run IDs and Direction Banner
-        run_id_a = str(data_a.get("run_id", "A"))
-        run_id_b = str(data_b.get("run_id", "B"))
-
+    if is_demo_active:
+        st.info("ℹ️ **Namunaviy ma'lumotlar to‘plami faol:** `superstore_cleaned.csv` (Savdo va buyurtmalar tahlili). O‘zingizning CSV faylingizni yuklasangiz, u darhol almashtiriladi.")
+        try:
+            df = pd.read_csv("superstore_cleaned.csv", encoding="utf-8")
+            file_name = "superstore_cleaned.csv"
+            file_size_bytes = os.path.getsize("superstore_cleaned.csv")
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            run_single_eda_pipeline(df, file_name, file_size_mb)
+        except Exception as e:
+            st.error(f"❌ Demo faylni yuklashda xatolik yuz berdi: {e}")
+    elif uploaded_file is None:
         st.markdown(
-            f"""
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 18px; margin: 12px 0 20px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <div>
-                    <span style="font-size: 13px; font-weight: 700; color: #475569;">Experiment Direction:</span>
-                    <span style="font-family: monospace; font-size: 13px; font-weight: 600; color: #0b192c; margin-left: 6px;">
-                        A: <b>{exp_a_file.name}</b> (run_id: <code>{run_id_a}</code>) ➔ B: <b>{exp_b_file.name}</b> (run_id: <code>{run_id_b}</code>)
-                    </span>
-                </div>
-                <div>
-                    <span style="font-size: 12px; color: #64748b;">Formula: <b>Δ = B − A</b></span>
+            """
+            <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 14px; padding: 40px 24px; text-align: center; margin-top: 14px;">
+                <div style="font-size: 42px; margin-bottom: 12px;">📁</div>
+                <h3 style="color: #0b192c !important; margin: 0 0 8px 0; font-size: 20px;">No CSV file uploaded yet</h3>
+                <p style="color: #64748b; font-size: 14px; max-width: 520px; margin: 0 auto 16px auto;">
+                    Drag and drop or browse your CSV file above to start analyzing dataset structure, column types, missing values, and category charts.
+                </p>
+                <div style="display: inline-flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+                    <span style="background: #e0e7ff; color: #0537ff; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;">UTF-8 CSV</span>
+                    <span style="background: #e0e7ff; color: #0537ff; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;">Max 5 MB</span>
+                    <span style="background: #e0e7ff; color: #0537ff; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;">Automatic Delimiter Detection</span>
                 </div>
             </div>
             """,
             unsafe_allow_html=True
         )
+    else:
+        file_name = uploaded_file.name
+        if not file_name.lower().endswith(".csv"):
+            st.error(f"❌ Wrong file type: '{file_name}'. Please upload a valid file ending with .csv.")
+            st.stop()
 
-        # 3. Context Verification & Three Statuses
-        REQUIRED_CONTEXT = [
-            "dataset_id",
-            "split_id",
-            "target",
-            "positive_class",
-            "features",
-            "threshold",
-            "seed",
-            "evaluation_split"
-        ]
+        file_size_bytes = uploaded_file.size
+        file_size_mb = file_size_bytes / (1024 * 1024)
+        if file_size_bytes > MAX_FILE_SIZE_BYTES:
+            st.error(f"❌ The uploaded file is too large ({file_size_mb:.2f} MB). The maximum allowed file size is 5 MB.")
+            st.stop()
 
-        missing_in_a = [f for f in REQUIRED_CONTEXT if f not in data_a or data_a[f] is None]
-        missing_in_b = [f for f in REQUIRED_CONTEXT if f not in data_b or data_b[f] is None]
+        if file_size_bytes == 0:
+            st.error("❌ The uploaded file is empty (0 bytes). Please upload a file that contains data.")
+            st.stop()
 
-        diff_list = []
-        if missing_in_a or missing_in_b:
-            exp_status = "Insufficient context"
-            missing_reasons = []
-            if missing_in_a:
-                missing_reasons.append(f"Experiment A missing: {', '.join(missing_in_a)}")
-            if missing_in_b:
-                missing_reasons.append(f"Experiment B missing: {', '.join(missing_in_b)}")
-            status_desc = "; ".join(missing_reasons)
-        else:
-            # Check matching
-            if data_a["dataset_id"] != data_b["dataset_id"]:
-                diff_list.append(f"dataset_id ('{data_a['dataset_id']}' vs '{data_b['dataset_id']}')")
-            if data_a["split_id"] != data_b["split_id"]:
-                diff_list.append(f"split_id ('{data_a['split_id']}' vs '{data_b['split_id']}')")
-            if data_a["target"] != data_b["target"]:
-                diff_list.append(f"target ('{data_a['target']}' vs '{data_b['target']}')")
-            if data_a["positive_class"] != data_b["positive_class"]:
-                diff_list.append(f"positive_class ('{data_a['positive_class']}' vs '{data_b['positive_class']}')")
-            if set(data_a.get("features", [])) != set(data_b.get("features", [])):
-                diff_list.append("feature set mismatch (elements differ)")
-            if data_a["threshold"] != data_b["threshold"]:
-                diff_list.append(f"threshold ({data_a['threshold']} vs {data_b['threshold']})")
-            if data_a["seed"] != data_b["seed"]:
-                diff_list.append(f"seed ({data_a['seed']} vs {data_b['seed']})")
-            if data_a["evaluation_split"] != data_b["evaluation_split"]:
-                diff_list.append(f"evaluation_split ('{data_a['evaluation_split']}' vs '{data_b['evaluation_split']}')")
-            elif data_a["evaluation_split"] != "validation":
-                diff_list.append(f"evaluation_split is not 'validation' (both record '{data_a['evaluation_split']}')")
+        try:
+            uploaded_file.seek(0)
+            try:
+                df = pd.read_csv(uploaded_file, sep=None, engine="python", encoding="utf-8", header=0)
+            except Exception:
+                uploaded_file.seek(0)
+                df = pd.read_csv(uploaded_file, sep=",", encoding="utf-8", header=0)
+        except UnicodeDecodeError:
+            st.error("❌ Could not read the file using UTF-8 encoding. Please save your CSV with UTF-8 encoding and try again.")
+            st.stop()
+        except pd.errors.EmptyDataError:
+            st.error("❌ The uploaded file contains no data or headers. Please verify the file content.")
+            st.stop()
+        except pd.errors.ParserError as e:
+            st.error(f"❌ Could not parse the CSV file. Please make sure the file is in valid CSV format.\n\nDetails: {e}")
+            st.stop()
+        except Exception as e:
+            st.error(f"❌ An unexpected error occurred while reading the file: {e}")
+            st.stop()
 
-            if not diff_list:
-                exp_status = "Same recorded conditions"
-                status_desc = "Recorded labels match; this does not verify the measurements. Model, penalty, and C are compared settings."
-            else:
-                exp_status = "Conditions differ"
-                status_desc = f"Recorded conditions differ: {'; '.join(diff_list)}. Direction alone does not establish quality; never choose a winner."
+        if df.empty:
+            st.warning("⚠️ The file was parsed, but it contains no rows of data.")
+            st.stop()
 
-        # Display Status Card
-        if exp_status == "Same recorded conditions":
-            st.success(f"🟢 **Status: Same recorded conditions** — {status_desc}")
-        elif exp_status == "Conditions differ":
-            st.warning(f"🟠 **Status: Conditions differ** — {status_desc}")
-        else:
-            st.error(f"🔴 **Status: Insufficient context** — {status_desc}")
+        run_single_eda_pipeline(df, file_name, file_size_mb)
 
-        # 4. Three Main Metric Cards (F1, Precision, Recall Only)
-        f1_a, f1_b = float(m_a["f1"]), float(m_b["f1"])
-        prec_a, prec_b = float(m_a["precision"]), float(m_b["precision"])
-        rec_a, rec_b = float(m_a["recall"]), float(m_b["recall"])
+# -------------------------------------------------------------
+# TAB 2: CSV Diff (BEFORE vs AFTER)
+# -------------------------------------------------------------
+with tab_csv_diff:
+    render_csv_diff_section()
 
-        f1_delta = round(f1_b - f1_a, 2)
-        prec_delta = round(prec_b - prec_a, 2)
-        rec_delta = round(rec_b - rec_a, 2)
+# -------------------------------------------------------------
+# TAB 3: ML Experiment Compare (M4C5)
+# -------------------------------------------------------------
+with tab_ml_compare:
+    render_ml_compare_section()
 
-        c_m1, c_m2, c_m3 = st.columns(3)
+# -------------------------------------------------------------
+# TAB 4: Methodology & Guide
+# -------------------------------------------------------------
+with tab_docs:
+    render_docs_section()
 
-        with c_m1:
-            st.metric(
-                label="F1 Score",
-                value=f"{f1_a:.2f} → {f1_b:.2f}",
-                delta=f"{f1_delta:+.2f}" if f1_delta != 0 else "0.00",
-                delta_color="off"
-            )
-            if f1_delta > 0:
-                st.markdown(f'<span class="badge-added">+{f1_delta:.2f} Upward</span>', unsafe_allow_html=True)
-            elif f1_delta < 0:
-                st.markdown(f'<span class="badge-removed">{f1_delta:.2f} Downward</span>', unsafe_allow_html=True)
-            else:
-                st.markdown('<span class="badge-unchanged">0.00 Zero</span>', unsafe_allow_html=True)
-
-        with c_m2:
-            st.metric(
-                label="Precision",
-                value=f"{prec_a:.2f} → {prec_b:.2f}",
-                delta=f"{prec_delta:+.2f}" if prec_delta != 0 else "0.00",
-                delta_color="off"
-            )
-            if prec_delta > 0:
-                st.markdown(f'<span class="badge-added">+{prec_delta:.2f} Upward</span>', unsafe_allow_html=True)
-            elif prec_delta < 0:
-                st.markdown(f'<span class="badge-removed">{prec_delta:.2f} Downward</span>', unsafe_allow_html=True)
-            else:
-                st.markdown('<span class="badge-unchanged">0.00 Zero</span>', unsafe_allow_html=True)
-
-        with c_m3:
-            st.metric(
-                label="Recall",
-                value=f"{rec_a:.2f} → {rec_b:.2f}",
-                delta=f"{rec_delta:+.2f}" if rec_delta != 0 else "0.00",
-                delta_color="off"
-            )
-            if rec_delta > 0:
-                st.markdown(f'<span class="badge-added">+{rec_delta:.2f} Upward</span>', unsafe_allow_html=True)
-            elif rec_delta < 0:
-                st.markdown(f'<span class="badge-removed">{rec_delta:.2f} Downward</span>', unsafe_allow_html=True)
-            else:
-                st.markdown('<span class="badge-unchanged">0.00 Zero</span>', unsafe_allow_html=True)
-
-        st.caption(
-            "ℹ️ *Note: Delta = B − A. Direction describes a numerical change, not a quality verdict or proof that one run is better. Never choose a winner.*"
-        )
-
-        # 5. Recorded Model Settings Comparison
-        st.markdown("##### ⚙️ Recorded Model Settings")
-        set_col1, set_col2, set_col3 = st.columns(3)
-        with set_col1:
-            st.markdown(f"**Model:** `{data_a.get('model', '—')}` → `{data_b.get('model', '—')}`")
-        with set_col2:
-            st.markdown(f"**Penalty:** `{data_a.get('penalty', '—')}` → `{data_b.get('penalty', '—')}`")
-        with set_col3:
-            c_a = data_a.get("C")
-            c_b = data_b.get("C")
-            if isinstance(c_a, (int, float)) and isinstance(c_b, (int, float)):
-                c_diff = round(c_b - c_a, 2)
-                st.markdown(f"**C (Regularization):** `{c_a}` → `{c_b}` (Δ = **{c_diff:+g}**)")
-            else:
-                st.markdown(f"**C (Regularization):** `{c_a}` → `{c_b}`")
-        st.caption("ℹ️ *Model, penalty, and C are recorded model settings to display: their differences are compared without being treated as a condition mismatch.*")
-
-        # Expandable Detail 1: Train - Validation F1 Gap
-        with st.expander("🔍 Train − Validation F1 Gap", expanded=True):
-            if data_a.get("evaluation_split") == "validation" and data_b.get("evaluation_split") == "validation":
-                if "train_f1" in m_a and "train_f1" in m_b:
-                    train_f1_a = float(m_a["train_f1"])
-                    train_f1_b = float(m_b["train_f1"])
-                    gap_a = round(train_f1_a - f1_a, 2)
-                    gap_b = round(train_f1_b - f1_b, 2)
-                    gap_diff = round(gap_b - gap_a, 2)
-
-                    gap_c1, gap_c2, gap_c3 = st.columns(3)
-                    with gap_c1:
-                        st.metric("Experiment A Gap (Train − Val)", f"{gap_a:.2f}")
-                        st.caption(f"Train: {train_f1_a:.2f} − Val: {f1_a:.2f}")
-                    with gap_c2:
-                        st.metric("Experiment B Gap (Train − Val)", f"{gap_b:.2f}")
-                        st.caption(f"Train: {train_f1_b:.2f} − Val: {f1_b:.2f}")
-                    with gap_c3:
-                        st.metric("Gap Change (B − A)", f"{gap_diff:+.2f}")
-                        st.caption(f"{gap_a:.2f} → {gap_b:.2f}")
-
-                    st.caption(
-                        "ℹ️ *Train − validation F1 gap is available only for validation results. "
-                        "A smaller gap may indicate less generalization gap, but must be interpreted on matching validation splits.*"
-                    )
-                else:
-                    st.info("ℹ️ Train − Validation F1 gap unavailable: 'train_f1' metric is missing in one or both experiment summaries.")
-            else:
-                st.info(
-                    "ℹ️ **Train − Validation F1 gap is unavailable**: The gap can only be calculated when both runs record "
-                    "`evaluation_split = 'validation'`. (For example, runs evaluated on 'train' or incomplete context records cannot produce a validation gap)."
-                )
-
-        # Expandable Detail 2: Detailed Context Verification Matrix
-        with st.expander("📋 Recorded Context Verification Matrix", expanded=False):
-            matrix_rows = []
-            for cf in REQUIRED_CONTEXT:
-                val_a = data_a.get(cf)
-                val_b = data_b.get(cf)
-                if val_a is None or val_b is None:
-                    mtch = "❌ Missing Context"
-                elif cf == "features":
-                    mtch = "✅ Match (Set identical)" if set(val_a) == set(val_b) else "❌ Mismatch"
-                    val_a = ", ".join(val_a) if isinstance(val_a, list) else str(val_a)
-                    val_b = ", ".join(val_b) if isinstance(val_b, list) else str(val_b)
-                elif cf == "evaluation_split":
-                    if val_a == val_b == "validation":
-                        mtch = "✅ Match (validation)"
-                    elif val_a == val_b:
-                        mtch = f"⚠️ Not validation ('{val_a}')"
-                    else:
-                        mtch = f"❌ Split Mismatch ('{val_a}' vs '{val_b}')"
-                else:
-                    mtch = "✅ Match" if val_a == val_b else "❌ Mismatch"
-
-                matrix_rows.append({
-                    "Context Field": cf,
-                    "Experiment A": str(val_a),
-                    "Experiment B": str(val_b),
-                    "Match Status": mtch
-                })
-            st.dataframe(pd.DataFrame(matrix_rows), use_container_width=True, hide_index=True)
-
-        # Expandable Detail 3: Raw JSON Records
-        with st.expander("📄 Raw Experiment JSON Records", expanded=False):
-            raw_c1, raw_c2 = st.columns(2)
-            with raw_c1:
-                st.markdown(f"**Experiment A ({run_id_a}):**")
-                st.json(data_a)
-            with raw_c2:
-                st.markdown(f"**Experiment B ({run_id_b}):**")
-                st.json(data_b)
-
-
+# Global Footer
+st.markdown(
+    """
+    <div style="text-align: center; padding: 32px 0 16px 0; border-top: 1px solid #e2e8f0; margin-top: 40px; color: #64748b; font-size: 13px;">
+        Dataset Explorer AI · Ishlab chiqilgan: <a href="https://tahlilchi-ai.uz/" target="_blank" style="color: #0537ff; font-weight: 700; text-decoration: none;">Tahlilchi AI</a> · Muallif: <strong>Usnatdin Xafizadinov</strong>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
