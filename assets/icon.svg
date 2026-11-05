@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" fill="none">
   <defs>
-    <linearGradient id="tahlilchi-bars" x1="128" y1="904" x2="896" y2="248" gradientUnits="userSpaceOnUse">
+    <linearGradient id="chart-bars" x1="128" y1="904" x2="896" y2="248" gradientUnits="userSpaceOnUse">
       <stop stop-color="#22d3ee" />
       <stop offset="0.5" stop-color="#38bdf8" />
       <stop offset="1" stop-color="#6366f1" />
     </linearGradient>
   </defs>
   <rect width="1024" height="1024" rx="256" fill="none" />
-  <g fill="url(#tahlilchi-bars)">
+  <g fill="url(#chart-bars)">
     <rect x="128" y="682" width="128" height="182" rx="48" />
     <rect x="320" y="626" width="128" height="238" rx="48" />
     <rect x="512" y="554" width="128" height="310" rx="48" />

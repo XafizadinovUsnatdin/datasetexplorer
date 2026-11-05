@@ -8,7 +8,6 @@ import json
 import math
 
 icon_path = os.path.join(os.path.dirname(__file__), "assets", "icon.svg")
-logo_path = os.path.join(os.path.dirname(__file__), "assets", "tahlilchi-logo.svg")
 
 icon_b64 = ""
 if os.path.exists(icon_path):
@@ -17,7 +16,7 @@ if os.path.exists(icon_path):
 
 # Configure page settings
 st.set_page_config(
-    page_title="Dataset Explorer AI · Tahlilchi AI",
+    page_title="Dataset Explorer AI",
     page_icon=icon_path if os.path.exists(icon_path) else "📊",
     layout="wide"
 )
@@ -432,7 +431,7 @@ def generate_markdown_report(df, filename, total_rows, total_cols, dup_count, du
 
 - **Filename:** `{filename}`
 - **Generated on:** `2026-11-05`
-- **Platform:** [Dataset Explorer AI](https://github.com/XafizadinovUsnatdin/datasetexplorer) · [Tahlilchi AI](https://tahlilchi-ai.uz/)
+- **Platform:** [Dataset Explorer AI](https://github.com/XafizadinovUsnatdin/datasetexplorer)
 
 ---
 
@@ -1994,7 +1993,7 @@ def render_docs_section():
 
 # Logo HTML construction
 if icon_b64:
-    logo_img_html = f'<img src="data:image/svg+xml;base64,{icon_b64}" width="46" height="46" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(5, 55, 255, 0.15);" alt="Tahlilchi AI Logo" />'
+    logo_img_html = f'<img src="data:image/svg+xml;base64,{icon_b64}" width="46" height="46" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(5, 55, 255, 0.15);" alt="Dataset Explorer AI Logo" />'
 else:
     logo_img_html = '<span style="font-size: 36px;">📊</span>'
 
@@ -2005,7 +2004,7 @@ st.markdown(
         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
             {logo_img_html}
             <div>
-                <div class="hero-badge">Tahlilchi AI · AI/ML Engineering & Analytics</div>
+                <div class="hero-badge">AI/ML Engineering & Tabular Analytics</div>
                 <div class="hero-title">📊 Dataset Explorer AI</div>
             </div>
         </div>
@@ -2162,7 +2161,7 @@ with tab_docs:
 st.markdown(
     """
     <div style="text-align: center; padding: 32px 0 16px 0; border-top: 1px solid #e2e8f0; margin-top: 40px; color: #64748b; font-size: 13px;">
-        Dataset Explorer AI · Powered by <a href="https://tahlilchi-ai.uz/" target="_blank" style="color: #0537ff; font-weight: 700; text-decoration: none;">Tahlilchi AI</a> · Developed by <strong>Usnatdin Xafizadinov</strong>
+        Dataset Explorer AI · Developed by <strong>Usnatdin Xafizadinov</strong> · <a href="https://github.com/XafizadinovUsnatdin/datasetexplorer" target="_blank" style="color: #0537ff; font-weight: 700; text-decoration: none;">GitHub Repository</a>
     </div>
     """,
     unsafe_allow_html=True

@@ -5,9 +5,7 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40%2B-FF4B4B.svg)](https://streamlit.io/)
 [![Pandas](https://img.shields.io/badge/Pandas-2.0%2B-150458.svg)](https://pandas.pydata.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Branding: Tahlilchi AI](https://img.shields.io/badge/Powered%20by-Tahlilchi%20AI-0537ff.svg)](https://tahlilchi-ai.uz/)
-
-An interactive, user-friendly exploratory data analysis (EDA) and experiment tracking dashboard built with **Streamlit** and **Pandas**, powered by **[Tahlilchi AI](https://tahlilchi-ai.uz/)**.
+An interactive, user-friendly exploratory data analysis (EDA) and experiment tracking dashboard built with **Streamlit** and **Pandas**.
 
 **Dataset Explorer AI** is designed for data analysts, ML practitioners, students, and engineers who need deep, reliable insights into tabular data without altering or corrupting the raw source. It handles everything from detecting invisible whitespace corruptions to comparing machine learning experiment summaries with strict scientific rigor.
 
@@ -168,7 +166,6 @@ Refer to [checks.txt](checks.txt) for the complete 11-point verification log (**
 ## 👤 Author & Acknowledgments
 
 * **Developer**: Usnatdin Xafizadinov
-* **Organization**: [Tahlilchi AI](https://tahlilchi-ai.uz/)
 * **Repository**: [https://github.com/XafizadinovUsnatdin/datasetexplorer](https://github.com/XafizadinovUsnatdin/datasetexplorer)
 * **Email**: xafizadinovusnatdin@gmail.com
 
