@@ -1,0 +1,279 @@
+================================================================================
+DATASET EXPLORER AI - VERIFICATION & CHECK REPORT
+Date: 2026-10-24
+App URL: http://localhost:8501
+Environment: Windows / Python 3.13.5 / Streamlit 1.45.1 / pandas 2.2.3
+================================================================================
+
+PART 1: AUTOMATED CHECKS
+--------------------------------------------------------------------------------
+
+[CHECK 1] Primary Test CSV Calculations & Metrics
+Test Input:
+  category,value
+  A,10
+  A,20
+  B,
+  B,5
+  B,5
+Expected Result:
+  - Total Rows: 5
+  - Total Columns: 2
+  - Missing in 'value': 1 (20.00%)
+  - Extra Exact Duplicate Rows: 1
+  - Category A Total: 30
+  - Category B Total: 10
+  - Filtered Missing Rows: 1 row (B,)
+Observed Result:
+  - Total Rows: 5
+  - Total Columns: 2
+  - Missing in 'value': 1 (20.00%)
+  - Extra Exact Duplicate Rows: 1
+  - Category A Total: 30
+  - Category B Total: 10
+  - Filtered Missing Rows: 1 row
+Status: PASSED
+
+[CHECK 2] Text Columns Only CSV Handling
+Test Input:
+  name,role,department
+  Alice,Developer,Engineering
+  Bob,Designer,Product
+  Charlie,Manager,Engineering
+Expected Result:
+  0 numeric columns detected. Bar chart section displays clear warning explaining
+  why the chart is unavailable. Dataset overview and column tables remain operational.
+Observed Result:
+  0 numeric columns detected. Warning triggered ("No usable numeric columns were
+  detected in this dataset..."). Overview and preview remain active for 3 rows and 3 columns.
+Status: PASSED
+
+[CHECK 3] Empty CSV (0 Bytes) Validation
+Test Input:
+  File with 0 bytes.
+Expected Result:
+  Triggers immediate error message: "The uploaded file is empty (0 bytes).
+  Please upload a file that contains data." Script execution stops safely.
+Observed Result:
+  Size check detects 0 bytes, triggers st.error(), and halts parsing via st.stop().
+Status: PASSED
+
+[CHECK 4] Wrong-Format File Type Validation
+Test Input:
+  Non-.csv filenames ("dataset.txt", "data.json", "table.xlsx").
+Expected Result:
+  Rejects upload with error: "Wrong file type: '<filename>'. Please upload a valid
+  file ending with .csv."
+Observed Result:
+  File extension check strictly enforces .csv, rejects tested extensions with st.error().
+Status: PASSED
+
+[CHECK 5] All-Missing Numeric Group Handling
+Test Input:
+  category,value
+  A,10
+  A,20
+  C,
+  C,
+Expected Result:
+  Group C has all numeric values missing. Sum calculation must use min_count=1
+  returning NaN (not 0.0), and the exact totals table must display "No data"
+  without converting it to a known zero.
+Observed Result:
+  Group C sum is NaN (isna=True). Formatted table output displays "No data".
+  Zero distortion is prevented.
+Status: PASSED
+
+[CHECK 6] Local HTTP Server Response
+Test Input:
+  HTTP GET request to http://localhost:8501
+Expected Result:
+  HTTP Status Code 200 OK.
+Observed Result:
+  StatusCode: 200, StatusDescription: OK.
+Status: PASSED
+
+[CHECK 7] Spaces-Only Cell Count Validation (New Feature)
+Test Input:
+  CSV_TEST:
+    row,amount,note
+    A,10,ok
+    B,"   ",ok
+    C,,ok
+    D,0," "
+    E,30,ok
+  CSV_CONTROL:
+    row,amount,note
+    A,10,ok
+    B,20,ok
+    C,,ok
+    D,0,ok
+    E,30,ok
+Expected Result:
+  - CSV_TEST:
+    - 5 rows · 3 columns
+    - 'amount': 1 ordinary missing (NaN, row C), 1 spaces-only cell (row B "   ")
+    - 'note': 0 ordinary missing, 1 spaces-only cell (row D " ")
+    - 'row': 0 ordinary missing, 0 spaces-only
+    - Total spaces-only cells: 2
+    - Value 0 in row D is not counted as missing or spaces
+  - CSV_CONTROL:
+    - 5 rows · 3 columns
+    - 'amount': 1 ordinary missing (NaN), 0 spaces-only cells
+    - Total spaces-only cells: 0
+Observed Result:
+  - CSV_TEST: amount (missing=1, spaces=1), note (missing=0, spaces=1), row (missing=0, spaces=0), Total Spaces-Only Cells = 2
+  - CSV_CONTROL: amount (missing=1, spaces=0), note (missing=0, spaces=0), row (missing=0, spaces=0), Total Spaces-Only Cells = 0
+  - Original source data is unmodified (no fill, trim, delete)
+Status: PASSED
+
+[CHECK 8] Optional Spaces-Only Row View Validation (M3C1 Prompt 2)
+Test Input:
+  CSV_TEST rows filtered by spaces_row_mask.
+Expected Result:
+  Filter identifies exactly rows B and D (2 rows) containing at least one spaces-only cell.
+  Row C (NaN) and row D (0) are not counted as spaces-only.
+  Summary tables and charts continue to calculate over the full dataset (5 rows).
+Observed Result:
+  Filtered rows: ['B', 'D']. Full dataset remains untouched.
+Status: PASSED
+
+[CHECK 9] Numeric Value Inspection & 1.5x IQR Outlier Detection (M3C2 Upgrade)
+Test Input:
+  M3C2_TEST (10 rows, amount values 10-17 and 100, row J missing)
+  M3C2_CONTROL (10 rows, amount values 10-18, row J missing)
+  M3C2_EXTRA_CHECK (constant, few, empty columns)
+Expected Result:
+  - M3C2_TEST: 9 usable, 1 missing. Q1=12.0, Q3=16.0, IQR=4.0, Lower=6.0, Upper=22.0. Flagged: 1 row (row_id I with amount 100).
+  - M3C2_CONTROL: 9 usable, 1 missing. Q1=12.0, Q3=16.0, IQR=4.0, Lower=6.0, Upper=22.0. Flagged: 0 rows.
+  - Scaling preview (CONTROL): Row A Raw=10 (MinMax=0.000, Standard=-1.549), Row E Raw=14 (MinMax=0.500, Standard=0.000), Row I Raw=18 (MinMax=1.000, Standard=1.549).
+  - M3C2_EXTRA_CHECK: constant (0 flags, no division by zero), few (usable < 4 shows friendly message without IQR verdict), empty (0 usable shows friendly message).
+Observed Result:
+  All assertions passed with 100% precision. Source data unmodified.
+Status: PASSED
+
+[CHECK 10] CSV Version Comparison: BEFORE vs AFTER (M3C4 Upgrade)
+Test Input:
+  - M3C4_BEFORE.csv (6 rows, 6 cols: row_id, name, age, city, score, legacy_note; 3 missing cells)
+  - M3C4_AFTER.csv (7 rows, 6 cols: row_id, name, age, city, score, segment; 1 missing cell)
+  - M3C4_REORDERED_BEFORE.csv (6 rows, reordered)
+  - M3C4_DUPLICATE_ID.csv (7 rows, duplicate ID 'G')
+  - M3C4_TEXT_IDS.csv (2 rows, text IDs '001' and '1', values 'NA', 'null', 0)
+Expected Result:
+  1. Main pair (BEFORE -> AFTER, ID = row_id):
+     - Rows: 6 -> 7 (Δ = +1)
+     - Columns: 6 -> 6 (Δ = 0)
+     - Missing cells: 3 -> 1 (Δ = -2)
+     - Added column: 'segment' (+1)
+     - Removed column: 'legacy_note' (-1)
+     - Added records: G, H, I (+3)
+     - Removed records: E, F (-2)
+     - Common IDs: A, B, C, D (4)
+     - Missing in common: age (1 -> 0), city (1 -> 0), score (1 -> 1)
+  2. Same file (BEFORE -> BEFORE):
+     - All deltas = 0, no added/removed columns, no added/removed records.
+  3. Swapped pair (AFTER -> BEFORE):
+     - Rows: 7 -> 6 (Δ = -1), Missing: 1 -> 3 (Δ = +2), Added records: E, F (+2), Removed: G, H, I (-3).
+  4. Reordered rows:
+     - All deltas = 0, zero added/removed records.
+  5. Duplicate ID guard (AFTER has duplicate 'G'):
+     - Summary metrics remain displayed; record matching safely disabled with duplicate ID error.
+  6. Text IDs preservation:
+     - '001' and '1' remain distinct; 'NA', 'null', and '0' not counted as missing (0 missing).
+  7. Faulty exercise M3C4_COUNT_ADDED_BUG.py:
+     - Corrected to return len(new_ids - old_ids) = 3 for arrivals and 0 for identical sets.
+Observed Result:
+  All 7 M3C4 verification test cases passed with 100% precision. Source tables untouched.
+Status: PASSED
+
+[CHECK 11] Experiment Summary Comparison (M4C5 Upgrade)
+Test Input:
+  - M4C5_RUN_A.json (run_id: DEMO_A, dataset_id: demo_telco_v1, split_id: demo_split_42, C: 1, evaluation_split: validation, f1: 0.60, precision: 0.64, recall: 0.57, train_f1: 0.75)
+  - M4C5_RUN_B.json (run_id: DEMO_B, dataset_id: demo_telco_v1, split_id: demo_split_42, C: 0.1, evaluation_split: validation, f1: 0.63, precision: 0.67, recall: 0.59, train_f1: 0.70)
+  - M4C5_CHALLENGE.json (run_id: DEMO_TRAIN, evaluation_split: train, f1: 0.86, train_f1: 0.86)
+  - M4C5_MISSING_CONTEXT.json (evaluation_split omitted)
+  - M4C5_CHANGED_SPLIT.json (split_id: demo_split_99)
+Expected Result:
+  1. Main pair (A -> B, Baseline vs Modified):
+     - Context Status: "Same recorded conditions" (Green badge)
+     - F1: 0.60 -> 0.63 (Δ = +0.03, green)
+     - Precision: 0.64 -> 0.67 (Δ = +0.03, green)
+     - Recall: 0.57 -> 0.59 (Δ = +0.02, green)
+     - Model C: 1 -> 0.1 (Δ = -0.90)
+     - Train - Validation F1 Gap: A: 0.15 -> B: 0.07 (Δ = -0.08)
+     - Direction warning: "Direction alone does not establish quality; never choose a winner."
+  2. Same file (A -> A):
+     - Deltas = 0.00, C delta = 0.00, Status: "Same recorded conditions".
+  3. Swapped pair (B -> A):
+     - F1: 0.63 -> 0.60 (Δ = -0.03, red)
+     - Precision: 0.67 -> 0.64 (Δ = -0.03, red)
+     - Recall: 0.59 -> 0.57 (Δ = -0.02, red)
+     - Model C: 0.1 -> 1 (Δ = +0.90)
+  4. Missing context (A -> MISSING):
+     - Status: "Insufficient context" (Kontekst yetarli emas).
+     - Gap calculation: Unavailable. Never invent defaults.
+  5. Changed split (A -> CHANGED_SPLIT):
+     - Status: "Conditions differ" (Sharoitlar farq qiladi, split_id mismatch).
+  6. Challenge check (A -> CHALLENGE):
+     - Status: "Conditions differ" (evaluation_split: validation vs train).
+     - +0.26 delta is not a validation gain; Train-Val Gap is Unavailable.
+Observed Result:
+  All 6 M4C5 test cases passed via test_m4c5_logic.py with 100% precision. Finite bounds [0.0, 1.0] enforced, zero preserved, stale results clear on input change.
+Status: PASSED
+
+
+PART 2: MANUAL CHECKS (BROWSER INTERACTIONS)
+--------------------------------------------------------------------------------
+Note: In accordance with testing guidelines, automated server response alone does
+not verify rendered browser appearance or client-side UI interactions. These
+browser steps cannot be executed by the headless terminal environment and are
+marked as NOT CHECKED for manual validation.
+
+[CHECK 7] Theme & Visual Layout Verification
+Expected Result:
+  Main page canvas background is pure white (#ffffff). Headers, primary buttons,
+  and interactive accents render in royal blue (#0537ff).
+Observed Result:
+  NOT CHECKED (Headless environment cannot visually inspect desktop browser rendering)
+Short Manual Steps:
+  1. Open http://localhost:8501 in your web browser.
+  2. Inspect the page background color (white: #ffffff).
+  3. Verify titles and button borders/fills appear in royal blue (#0537ff).
+
+[CHECK 8] Missing Rows Button Interactive Toggle
+Expected Result:
+  Clicking "Show Rows with Missing Values" reveals the table of rows with missing
+  values. Button label switches to "Hide Rows with Missing Values". Clicking again hides it.
+Observed Result:
+  NOT CHECKED (Headless environment cannot simulate browser button clicks)
+Short Manual Steps:
+  1. Upload a CSV containing missing cells (e.g., test CSV above).
+  2. In Section 3, click "🔍 Show Rows with Missing Values".
+  3. Confirm the table appears showing incomplete rows and the button label changes to "Hide...".
+  4. Click the button again and verify the table collapses.
+
+[CHECK 9] Category Bar Chart & Column Selectors
+Expected Result:
+  Selecting Category and Numeric columns updates the bar chart and exact totals table.
+  Both axes display custom labels ("Category: <col>" and "Aggregation: Sum of <col>").
+Observed Result:
+  NOT CHECKED (Headless environment cannot verify browser canvas rendering)
+Short Manual Steps:
+  1. In Section 4, switch the Category dropdown (e.g., between Category and Sub-Category).
+  2. Confirm the bar chart updates dynamically with descending sorted bars.
+  3. Check that the table below lists the exact totals matching each category.
+
+[CHECK 10] Separator / Delimiter Selector Toggle
+Expected Result:
+  Switching between Comma (,) and Semicolon (;) updates parsing without page crash.
+Observed Result:
+  NOT CHECKED (Headless environment cannot interact with browser radio buttons)
+Short Manual Steps:
+  1. In the sidebar, change separator from Comma to Semicolon on a comma-delimited CSV.
+  2. Verify the app displays a clear parser or single-column notice rather than crashing.
+  3. Switch back to Comma and verify normal tabular display restores immediately.
+
+================================================================================
+END OF REPORT - ALL AUTOMATED CHECKS PASSED (11/11)
+================================================================================
+

@@ -1,0 +1,29 @@
+# Python byte-code and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Streamlit local credentials & secrets
+.streamlit/secrets.toml
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files & Desktop shortcuts
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Local test scratch / log files
+*.log
